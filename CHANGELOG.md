@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2026-04-14
+
+### Added
+
+- **Multi-process mode**: shared inference server with multiple worker processes
+  - `tqcli serve start/stop/status` — manage the inference server
+  - `tqcli workers spawn N/list/stop` — manage worker processes
+  - `tqcli chat --engine server` — connect to a running server
+  - Automatic engine selection: vLLM (continuous batching + PagedAttention) on Linux with 8+ GB VRAM, llama.cpp server (sequential queue) everywhere else
+  - Resource assessment before spawning workers — estimates VRAM/RAM usage
+  - `tq-multi-process` skill with assessment and orchestration scripts
+- **Unrestricted mode**: `--stop-trying-to-control-everything-and-just-let-go`
+  - Bypasses resource guards, confirmation prompts, and feasibility checks
+  - Equivalent to Claude Code's `--dangerously-skip-permissions` / Gemini CLI's `--yolo`
+  - Audit logging remains active (always on)
+- **Server client backend**: `ServerClientBackend` inference engine that connects to HTTP servers via OpenAI-compatible API with SSE streaming support
+- New core modules: `server.py`, `server_client.py`, `multiprocess.py`, `unrestricted.py`
+- `MultiProcessConfig` in config for server host, port, and max workers
+
 ## [0.1.0] - 2026-04-13
 
 ### Added

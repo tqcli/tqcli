@@ -8,9 +8,11 @@ Built with [TurboQuant](https://arxiv.org/abs/2504.19874) methodologies — appl
 
 - **Run quantized LLMs locally** on Mac, Linux, or Windows via [llama.cpp](https://github.com/ggerganov/llama.cpp) or [vLLM](https://github.com/vllm-project/vllm)
 - **Smart routing** automatically dispatches prompts to the best model for the task (coding, reasoning, general)
+- **Multi-process mode** with a shared inference server and multiple worker processes (llama.cpp sequential or vLLM continuous batching)
 - **Performance monitoring** tracks tokens/second in real-time with live stats display
 - **Automatic handoff** generates context files to transfer work to Claude Code, Gemini CLI, or Aider when local inference is too slow
 - **Security isolation** via Python venvs, resource guards, and audit logging
+- **Unrestricted mode** (`--stop-trying-to-control-everything-and-just-let-go`) to bypass resource guards for advanced users
 - **Skills system** with discoverable, extensible skills (like Claude Code's skill architecture)
 
 ## Supported Models
@@ -108,6 +110,37 @@ User: "Summarize this article for me"
 
 The router classifies prompts using keyword and pattern heuristics, then ranks available models by their domain-specific strength scores. If only one model is loaded, classification is skipped.
 
+## Multi-Process Mode
+
+For parallel workloads, tqCLI can run a shared inference server with multiple worker processes:
+
+```bash
+# Start a shared inference server
+tqcli serve start --model qwen2.5-coder-7b-instruct-Q4_K_M
+
+# Spawn worker processes that connect to the server
+tqcli workers spawn 3
+
+# Or connect a single chat session to the server
+tqcli chat --engine server
+```
+
+tqCLI auto-selects the best server engine for your hardware:
+
+| Engine | How It Handles Multiple Workers | When to Use |
+|--------|-------------------------------|-------------|
+| **llama.cpp server** | Sequential queue (workers wait in line) | Cross-platform, any hardware |
+| **vLLM server** | Continuous batching + PagedAttention (true parallel) | Linux + 8 GB+ VRAM |
+
+The coordinator assesses your hardware before spawning workers and will refuse to start more than your system can handle (unless you use unrestricted mode).
+
+```bash
+# Check what your system can support
+tqcli serve status
+tqcli workers list
+tqcli serve stop       # stop server + all workers
+```
+
 ## Performance Monitoring & Handoff
 
 tqCLI tracks tokens/second during every inference:
@@ -157,6 +190,7 @@ tqCLI includes a skills system inspired by Claude Code:
 | `tq-benchmark` | Benchmark models for tokens/second performance |
 | `tq-security-audit` | Audit environment isolation and security posture |
 | `tq-handoff-generator` | Generate handoff files for frontier model CLIs |
+| `tq-multi-process` | Multi-process orchestration with shared inference server |
 
 ```bash
 tqcli skills  # List all available skills
@@ -187,7 +221,25 @@ security:
 
 router:
   enabled: true
+
+multiprocess:
+  server_host: 127.0.0.1
+  server_port: 8741
+  max_workers: 3
+  auto_start_server: true
 ```
+
+## Unrestricted Mode
+
+For experienced users who know their hardware better than our heuristics:
+
+```bash
+tqcli --stop-trying-to-control-everything-and-just-let-go chat
+tqcli --stop-trying-to-control-everything-and-just-let-go serve start
+tqcli --stop-trying-to-control-everything-and-just-let-go workers spawn 5
+```
+
+This is equivalent to Claude Code's `--dangerously-skip-permissions` and Gemini CLI's `--yolo`. It bypasses resource guards, confirmation prompts, and safety checks. Audit logging remains active.
 
 ## TurboQuant Reference
 

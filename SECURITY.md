@@ -52,13 +52,30 @@ tqCLI runs quantized LLMs locally on the user's machine. The security boundaries
 | Audit log tampering | Audit log is append-only by design. File permissions should restrict write access. |
 | Malicious contributions | All PRs require review, CI must pass, CODEOWNERS enforces maintainer approval on critical paths. |
 
+### Unrestricted Mode
+
+The `--stop-trying-to-control-everything-and-just-let-go` flag bypasses resource guards, confirmation prompts, and multi-process feasibility checks. It does NOT bypass:
+- Audit logging (always on)
+- Network binding (server always binds to localhost)
+- Model file integrity checks
+
+This mode exists for advanced users with non-standard hardware configurations (multi-GPU NVLink, 512 GB RAM servers, custom CUDA builds) where the default heuristics are too conservative.
+
+### Multi-Process Security
+
+When running in multi-process mode:
+- The inference server binds to `127.0.0.1` only (not network-accessible)
+- Workers communicate via HTTP on localhost
+- All server start/stop events are logged in the audit log
+- Resource guards prevent spawning more workers than the system can handle
+
 ### Security Best Practices for Users
 
 1. **Run in an isolated environment** — WSL2, Docker container, or a dedicated virtual environment. Do not install tqCLI system-wide as root.
 2. **Only download models from trusted sources** — the built-in model registry points to official HuggingFace repos. Verify repo ownership before downloading community models.
 3. **Review the audit log** — check `~/.tqcli/audit.log` periodically for unexpected events.
 4. **Keep dependencies updated** — run `pip install --upgrade tqcli` to get security patches.
-5. **Do not expose the inference server to the network** — if using llama.cpp server mode, bind to `localhost` only.
+5. **Do not expose the inference server to the network** — the server binds to `localhost` by default. Do not change this unless you understand the implications.
 
 ## Security-Related Configuration
 

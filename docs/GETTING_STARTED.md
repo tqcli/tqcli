@@ -212,9 +212,45 @@ pip install -e ".[llama]"
 | GPU not detected | Verify `nvidia-smi` works. On WSL2, update Windows NVIDIA drivers. |
 | Out of memory | Use a smaller quantization: Q3_K_M or Q2_K |
 
+## Multi-Process Mode
+
+If you want to run multiple chat sessions against the same model (or use skills that coordinate multiple workers):
+
+```bash
+# Start a shared inference server
+tqcli serve start
+
+# Open multiple worker sessions (each in its own terminal)
+tqcli chat --engine server     # terminal 1
+tqcli chat --engine server     # terminal 2
+
+# Or spawn workers automatically
+tqcli workers spawn 2
+
+# Check status
+tqcli serve status
+
+# Shut everything down
+tqcli serve stop
+```
+
+The system auto-detects whether to use llama.cpp server (any platform) or vLLM server (Linux with 8+ GB VRAM). vLLM is preferred for multi-process because it batches concurrent requests on the GPU.
+
+## Unrestricted Mode
+
+If tqCLI's resource guards are blocking you and you know your system can handle it:
+
+```bash
+tqcli --stop-trying-to-control-everything-and-just-let-go chat
+tqcli --stop-trying-to-control-everything-and-just-let-go workers spawn 5
+```
+
+This bypasses memory checks, confirmation prompts, and worker limits. Audit logging stays on.
+
 ## Next Steps
 
 - **Benchmark your setup**: `tqcli benchmark`
 - **Try multiple models**: download 2-3 models and let the router pick the best one per prompt
+- **Try multi-process**: `tqcli serve start` then `tqcli chat --engine server`
 - **Read the architecture**: `docs/ARCHITECTURE.md`
 - **Contribute**: see [CONTRIBUTING.md](../CONTRIBUTING.md)

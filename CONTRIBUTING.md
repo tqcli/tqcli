@@ -87,6 +87,7 @@ ruff format --check tqcli/ tests/
 | New model family | `tqcli/core/model_registry.py` — add `ModelProfile` entries |
 | New CLI command | `tqcli/cli.py` — add Click command group/command |
 | New skill | `.claude/skills/tq-<name>/` — follow existing SKILL.md pattern |
+| Multi-process changes | `tqcli/core/server.py`, `multiprocess.py`, `server_client.py` |
 | Bug fix | Wherever the bug is, plus a test in `tests/` |
 | Documentation | `docs/` or update `README.md` |
 

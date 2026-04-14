@@ -33,6 +33,15 @@ class SecurityConfig:
 
 
 @dataclass
+class MultiProcessConfig:
+    enabled: bool = False
+    max_workers: int = 3
+    server_port: int = 8741
+    server_host: str = "127.0.0.1"
+    auto_start_server: bool = True
+
+
+@dataclass
 class RouterConfig:
     enabled: bool = True
     default_model: str | None = None
@@ -52,6 +61,8 @@ class TqConfig:
     performance: PerformanceConfig = field(default_factory=PerformanceConfig)
     security: SecurityConfig = field(default_factory=SecurityConfig)
     router: RouterConfig = field(default_factory=RouterConfig)
+    multiprocess: MultiProcessConfig = field(default_factory=MultiProcessConfig)
+    unrestricted: bool = False  # stop-trying-to-control-everything-and-just-let-go mode
     skills_dir: Path = field(default_factory=lambda: Path.home() / ".tqcli" / "skills")
     memory_dir: Path = field(default_factory=lambda: Path.home() / ".tqcli" / "memory")
 
@@ -74,10 +85,11 @@ class TqConfig:
                 sec_raw[key] = Path(sec_raw[key])
         sec = SecurityConfig(**sec_raw)
         router = RouterConfig(**data.pop("router", {}))
+        mp = MultiProcessConfig(**data.pop("multiprocess", {}))
         for key in ("models_dir", "skills_dir", "memory_dir"):
             if key in data:
                 data[key] = Path(data[key])
-        return cls(performance=perf, security=sec, router=router, **data)
+        return cls(performance=perf, security=sec, router=router, multiprocess=mp, **data)
 
     def save(self, path: Path | None = None) -> None:
         if path is None:

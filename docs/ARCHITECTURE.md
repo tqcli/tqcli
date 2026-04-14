@@ -128,12 +128,30 @@ Mirrors Claude Code's skill architecture:
 - `base.py` — `BuiltinSkill` ABC for Python-implemented skills
 - `builtin/` — concrete skill implementations
 
+### `tqcli/core/server.py` — Inference Server
+
+Manages a background inference server process (llama.cpp or vLLM) that exposes an OpenAI-compatible HTTP API. Handles start, stop, health checks, and PID file management. The server is a single process that holds the model in memory; workers connect via HTTP.
+
+### `tqcli/core/server_client.py` — Server Client Backend
+
+An `InferenceEngine` implementation that delegates to a running HTTP server instead of loading models in-process. Supports both streaming (SSE) and non-streaming chat. Used by workers in multi-process mode.
+
+### `tqcli/core/multiprocess.py` — Multi-Process Coordinator
+
+- `assess_multiprocess()` — evaluates hardware feasibility for N workers, recommends engine and worker count
+- `MultiProcessCoordinator` — manages server lifecycle and worker spawning/stopping
+- Resource estimation accounts for PagedAttention savings (vLLM) vs sequential queuing (llama.cpp)
+
+### `tqcli/core/unrestricted.py` — Unrestricted Mode
+
+The `--stop-trying-to-control-everything-and-just-let-go` flag. Bypasses resource guards, confirmation prompts, and feasibility checks. Does NOT bypass audit logging. Equivalent to Claude Code's `--dangerously-skip-permissions`.
+
 ### `tqcli/ui/` — User Interface
 
 - `console.py` — Rich-based output (tables, panels, colored stats)
 - `interactive.py` — `InteractiveSession` manages the chat loop with streaming, routing, and performance monitoring
 
-## Data Flow: Chat Request
+## Data Flow: Single-Process Chat
 
 ```
 1. User types prompt
@@ -141,10 +159,25 @@ Mirrors Claude Code's skill architecture:
 3. Router classifies prompt → TaskDomain
 4. Router ranks available models by strength_score for that domain
 5. If best model differs from loaded model → unload/load
-6. Engine.chat_stream() called
+6. Engine.chat_stream() called (in-process inference)
 7. Tokens stream to UI via Rich Live display
 8. Final stats recorded by PerformanceMonitor
 9. If below threshold → warning or handoff
+```
+
+## Data Flow: Multi-Process Chat
+
+```
+1. tqcli serve start → launches inference server (background)
+2. tqcli workers spawn 3 → spawns 3 chat processes with --engine server
+3. Each worker:
+   a. Creates ServerClientBackend pointing to http://127.0.0.1:8741
+   b. User types prompt
+   c. HTTP POST to /v1/chat/completions (SSE streaming)
+   d. Tokens arrive via Server-Sent Events
+   e. Stats tracked per-worker independently
+4. vLLM: requests are batched on GPU (true parallelism)
+   llama.cpp: requests are queued (one at a time)
 ```
 
 ## Adding a New Backend
