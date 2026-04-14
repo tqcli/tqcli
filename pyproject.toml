@@ -1,0 +1,57 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tqcli"
+version = "0.1.0"
+description = "TurboQuant CLI — local LLM inference with smart model routing, performance monitoring, and TurboQuant methodologies"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.10"
+authors = [
+    {name = "ithllc"},
+]
+keywords = ["llm", "quantization", "inference", "cli", "turboquant", "llama-cpp", "vllm"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+dependencies = [
+    "click>=8.1",
+    "rich>=13.0",
+    "pyyaml>=6.0",
+    "psutil>=5.9",
+    "huggingface-hub>=0.20",
+    "jinja2>=3.1",
+]
+
+[project.optional-dependencies]
+llama = ["llama-cpp-python>=0.3.0"]
+vllm = ["vllm>=0.6.0"]
+all = ["tqcli[llama,vllm]"]
+dev = ["pytest>=7.0", "ruff>=0.4"]
+
+[project.scripts]
+tqcli = "tqcli.cli:main"
+tq = "tqcli.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/ithllc/tqCLI"
+Repository = "https://github.com/ithllc/tqCLI"
+
+[tool.setuptools.packages.find]
+include = ["tqcli*"]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 100
