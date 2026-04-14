@@ -62,6 +62,7 @@ def build_vllm_config(
     model: ModelProfile,
     sys_info: SystemInfo,
     requested_max_len: int | None = None,
+    kv_quant_choice: str | None = None,
 ) -> VllmTuningProfile:
     """Build a hardware-tuned vLLM configuration for the given model.
 
@@ -145,7 +146,8 @@ def build_vllm_config(
         )
         return profile
 
-    # ── Step 6: FP8 KV cache on Hopper+ ──────────────────────────────
+    # ── Step 6: KV cache compression ────────────────────────────────
+    # Try TurboQuant KV first (much better than FP8), then fall back to FP8
     gpu_cc = ""
     if sys_info.gpus:
         gpu_cc = sys_info.gpus[0].compute_capability
@@ -156,7 +158,37 @@ def build_vllm_config(
         except (ValueError, IndexError):
             pass
 
-    if cc_major >= 9 and available_for_kv_mb < 500:
+    # Check TurboQuant KV availability
+    from tqcli.core.kv_quantizer import (
+        KVQuantLevel,
+        check_turboquant_compatibility,
+        get_vllm_kv_params,
+        select_kv_quant,
+    )
+
+    tq_available, _tq_msg = check_turboquant_compatibility(sys_info)
+    kv_quant = kv_quant_choice if kv_quant_choice else "auto"
+
+    if kv_quant != "none" and tq_available:
+        kv_level = select_kv_quant(
+            available_kv_mb=available_for_kv_mb,
+            engine="vllm",
+            user_choice=kv_quant,
+        )
+        if kv_level != KVQuantLevel.NONE:
+            vllm_kv_params = get_vllm_kv_params(kv_level)
+            if vllm_kv_params.get("kv_cache_dtype"):
+                profile.kv_cache_dtype = vllm_kv_params["kv_cache_dtype"]
+                # TurboQuant KV gives ~4-6x compression
+                from tqcli.core.kv_quantizer import KV_COMPRESSION_RATIO
+                compression = KV_COMPRESSION_RATIO.get(kv_level, 1.0)
+                available_for_kv_mb *= compression
+                warnings.append(
+                    f"kv_cache_dtype={profile.kv_cache_dtype} "
+                    f"(TurboQuant {kv_level.value}: {compression}x KV compression)"
+                )
+    elif cc_major >= 9 and available_for_kv_mb < 500:
+        # Fall back to FP8 KV on Hopper+ if TurboQuant unavailable
         profile.kv_cache_dtype = "fp8"
         available_for_kv_mb *= 2
         warnings.append("kv_cache_dtype=fp8 (doubles KV cache capacity)")

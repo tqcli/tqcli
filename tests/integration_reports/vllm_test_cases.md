@@ -6,6 +6,11 @@
 
 > These test cases mirror the llama.cpp tests (Tests 1-4) but use the vLLM inference engine.
 > vLLM requires: Linux + NVIDIA GPU with CUDA support. WSL2 with passthrough GPU is supported.
+>
+> **v0.5.0:** TurboQuant KV cache compression is now supported via `--kv-quant` flag and
+> `kv_cache_dtype` parameter in vllm_config.py. See `turboquant_kv_test_cases.md` and
+> `turboquant_kv_comparison_report.md` for KV-specific tests.
+> Requires ithllc/vllm-turboquant fork built with CUDA 12.8+ for turboquant35/turboquant25 dtypes.
 
 ---
 

@@ -18,12 +18,14 @@ console = Console()
 def print_banner():
     banner = Text()
     banner.append("tqCLI", style="bold cyan")
-    banner.append(" v0.1.0", style="dim")
+    banner.append(" v0.5.0", style="dim")
     banner.append(" — TurboQuant Local Inference", style="white")
     console.print(Panel(banner, border_style="cyan"))
 
 
 def print_system_info(info):
+    from tqcli.core.kv_quantizer import check_turboquant_compatibility
+
     table = Table(title="System Info", border_style="cyan", show_header=False)
     table.add_column("Key", style="bold")
     table.add_column("Value")
@@ -34,7 +36,12 @@ def print_system_info(info):
 
     if info.gpus:
         for gpu in info.gpus:
-            table.add_row("GPU", f"{gpu.name} ({gpu.vram_total_mb:,} MB VRAM)")
+            cuda_info = ""
+            if gpu.cuda_version:
+                cuda_info = f", CUDA {gpu.cuda_version}"
+            if gpu.cuda_toolkit_version:
+                cuda_info += f", toolkit {gpu.cuda_toolkit_version}"
+            table.add_row("GPU", f"{gpu.name} ({gpu.vram_total_mb:,} MB VRAM{cuda_info})")
     elif info.has_metal:
         table.add_row("GPU", "Apple Silicon (Metal)")
     else:
@@ -43,6 +50,15 @@ def print_system_info(info):
     table.add_row("Engine", f"{info.recommended_engine} (recommended)")
     table.add_row("Max Model", f"~{info.max_model_size_estimate_gb} GB")
     table.add_row("Quant", f"{info.recommended_quant} recommended")
+
+    # TurboQuant KV cache compatibility
+    tq_available, tq_msg = check_turboquant_compatibility(info)
+    if tq_available:
+        table.add_row("TurboQuant KV", f"[green]available[/green]")
+    else:
+        # Extract the short reason (first sentence)
+        short_msg = tq_msg.split(". ")[0] + "." if ". " in tq_msg else tq_msg
+        table.add_row("TurboQuant KV", f"[yellow]unavailable[/yellow] ({short_msg})")
 
     if info.is_wsl:
         table.add_row("Environment", f"WSL{info.wsl_version}")

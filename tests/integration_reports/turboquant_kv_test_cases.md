@@ -152,13 +152,19 @@ engine = VllmBackend(
 
 ## Pre-Test Checklist
 
-- [ ] llama-cpp-python built against TheTom/turboquant_plus fork
+- [x] CUDA 12.8 toolkit installed (nvcc 12.8.93)
+- [x] ithllc/llama-cpp-turboquant forked and CUDA 12.8 build configured
+- [x] ithllc/vllm-turboquant forked
+- [x] Unified quantization pipeline implemented (kv_quantizer.py)
+- [x] CUDA version check + graceful degradation (check_turboquant_compatibility)
+- [x] `tqcli system info` shows TurboQuant KV status
+- [x] `--kv-quant` flag with graceful fallback on incompatible systems
+- [ ] llama-cpp-python built against ithllc/llama-cpp-turboquant fork
 - [ ] `turbo3` cache type accepted by llama_cpp.Llama()
-- [ ] mitkox/vllm-turboquant installed from source
+- [ ] ithllc/vllm-turboquant installed from source
 - [ ] `turboquant35` KV dtype accepted by vLLM LLM()
 - [ ] Existing GGUF models available (~/.tqcli/models/)
 - [ ] Existing AWQ model available (~/.tqcli/models/)
-- [ ] CUDA 12.8 available
 - [ ] Flash attention enabled (`-fa` for llama.cpp)
 
 ## Output Files

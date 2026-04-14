@@ -7,6 +7,10 @@
 > These test cases cover the llama.cpp inference engine across single-process and multi-process modes.
 > llama.cpp supports: CPU-only, NVIDIA GPU (CUDA), Apple Metal, and Vulkan acceleration.
 > WSL2 with GPU passthrough is supported.
+>
+> **v0.5.0:** TurboQuant KV cache compression is now supported via `--kv-quant` flag.
+> See `turboquant_kv_test_cases.md` and `turboquant_kv_comparison_report.md` for KV-specific tests.
+> Requires ithllc/llama-cpp-turboquant fork built with CUDA 12.8+ for turbo cache types.
 
 ---
 

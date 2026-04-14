@@ -154,7 +154,7 @@ def chat(ctx, model, engine, context_length, server_url, kv_quant):
         target_for_tune = available[0]
         if model:
             target_for_tune = registry.get_profile(model) or target_for_tune
-        tune = build_vllm_config(target_for_tune, sys_info, requested_max_len=context_length)
+        tune = build_vllm_config(target_for_tune, sys_info, requested_max_len=context_length, kv_quant_choice=kv_quant)
         if not tune.feasible and not unrestricted:
             console.print(f"[red]vLLM not feasible: {tune.reason}[/red]")
             console.print("Use --stop-trying-to-control-everything-and-just-let-go to bypass.")
@@ -164,9 +164,24 @@ def chat(ctx, model, engine, context_length, server_url, kv_quant):
         eng = VllmBackend.from_tuning_profile(tune)
     else:
         from tqcli.core.llama_backend import LlamaBackend
-        from tqcli.core.kv_quantizer import KVQuantLevel, get_llama_kv_params, select_kv_quant
+        from tqcli.core.kv_quantizer import (
+            KVQuantLevel, check_turboquant_compatibility, get_llama_kv_params, select_kv_quant,
+        )
+        # Check TurboQuant compatibility before applying KV compression
+        tq_available, tq_msg = check_turboquant_compatibility(sys_info)
+        effective_kv_quant = kv_quant
+
+        if kv_quant not in ("none", "auto") and not tq_available:
+            # User explicitly requested turbo KV but system is incompatible
+            console.print(f"  [yellow]{tq_msg}[/yellow]")
+            effective_kv_quant = "none"
+        elif kv_quant == "auto" and not tq_available:
+            # Auto mode: silently fall back with a dim warning
+            console.print(f"  [dim]TurboQuant KV: unavailable — {tq_msg.split('. ')[0]}.[/dim]")
+            effective_kv_quant = "none"
+
         # Determine KV cache compression level
-        kv_level = select_kv_quant(available_kv_mb=50, engine="llama.cpp", user_choice=kv_quant)
+        kv_level = select_kv_quant(available_kv_mb=50, engine="llama.cpp", user_choice=effective_kv_quant)
         kv_params = get_llama_kv_params(kv_level)
         if kv_level != KVQuantLevel.NONE:
             console.print(f"  [dim]TurboQuant KV: {kv_level.value} ({kv_params})[/dim]")
@@ -238,7 +253,10 @@ def system_info(as_json):
     from tqcli.core.system_info import detect_system
     from tqcli.ui.console import print_system_info
 
+    from tqcli.core.kv_quantizer import check_turboquant_compatibility
+
     info = detect_system()
+    tq_available, tq_msg = check_turboquant_compatibility(info)
     if as_json:
         data = {
             "os": info.os_name,
@@ -248,10 +266,19 @@ def system_info(as_json):
             "cpu_cores": info.cpu_cores_logical,
             "ram_total_mb": info.ram_total_mb,
             "ram_available_mb": info.ram_available_mb,
-            "gpus": [{"name": g.name, "vram_mb": g.vram_total_mb} for g in info.gpus],
+            "gpus": [
+                {
+                    "name": g.name,
+                    "vram_mb": g.vram_total_mb,
+                    "cuda_version": g.cuda_version,
+                    "cuda_toolkit_version": g.cuda_toolkit_version,
+                }
+                for g in info.gpus
+            ],
             "recommended_engine": info.recommended_engine,
             "recommended_quant": info.recommended_quant,
             "max_model_gb": info.max_model_size_estimate_gb,
+            "turboquant_kv": {"available": tq_available, "message": tq_msg},
         }
         click.echo(json_mod.dumps(data, indent=2))
     else:

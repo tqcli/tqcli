@@ -18,7 +18,8 @@ class GPUInfo:
     vram_free_mb: int
     compute_capability: str = ""
     driver_version: str = ""
-    cuda_version: str = ""
+    cuda_version: str = ""            # Driver's max supported CUDA version
+    cuda_toolkit_version: str = ""    # Installed nvcc/toolkit version
 
 
 @dataclass
@@ -123,7 +124,7 @@ def _detect_gpus() -> list[GPUInfo]:
     except (subprocess.TimeoutExpired, FileNotFoundError, ValueError):
         pass
 
-    # Try to get CUDA version
+    # Try to get compute capability and CUDA version
     if gpus:
         try:
             result = subprocess.run(
@@ -137,6 +138,47 @@ def _detect_gpus() -> list[GPUInfo]:
                 for i, cap in enumerate(caps):
                     if i < len(gpus):
                         gpus[i].compute_capability = cap.strip()
+        except (subprocess.TimeoutExpired, FileNotFoundError):
+            pass
+
+        # Get driver-supported CUDA version from nvidia-smi header
+        try:
+            result = subprocess.run(
+                ["nvidia-smi"],
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+            if result.returncode == 0:
+                for line in result.stdout.split("\n"):
+                    if "CUDA Version" in line:
+                        # Parse "CUDA Version: 13.0" from the nvidia-smi header
+                        import re
+                        match = re.search(r"CUDA Version:\s*([\d.]+)", line)
+                        if match:
+                            driver_cuda = match.group(1)
+                            for gpu in gpus:
+                                gpu.cuda_version = driver_cuda
+                        break
+        except (subprocess.TimeoutExpired, FileNotFoundError):
+            pass
+
+        # Try to get installed CUDA toolkit version (nvcc)
+        # This is more relevant for TurboQuant compilation
+        try:
+            result = subprocess.run(
+                ["nvcc", "--version"],
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+            if result.returncode == 0:
+                import re
+                match = re.search(r"release\s+([\d.]+)", result.stdout)
+                if match:
+                    toolkit_cuda = match.group(1)
+                    for gpu in gpus:
+                        gpu.cuda_toolkit_version = toolkit_cuda
         except (subprocess.TimeoutExpired, FileNotFoundError):
             pass
 

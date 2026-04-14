@@ -1,0 +1,556 @@
+{
+  "generated": "2026-04-14T18:59:14.938137",
+  "system": {
+    "os": "Linux (Ubuntu 22.04.4 LTS) (WSL2)",
+    "arch": "x86_64",
+    "cpu_cores": 16,
+    "ram_total_mb": 31956,
+    "ram_available_mb": 24782,
+    "gpu": "NVIDIA RTX A2000 Laptop GPU",
+    "vram_mb": 4096,
+    "cuda_version": "13.0",
+    "cuda_toolkit": "12.8",
+    "compute_capability": "8.6",
+    "is_wsl": true
+  },
+  "tests": [
+    {
+      "name": "Test 1: llama.cpp Gemma 4 E4B Q4_K_M + turbo3 KV",
+      "model_id": "gemma-4-e4b-it-Q4_K_M",
+      "engine": "llama.cpp",
+      "quantization": "Q4_K_M (pre-quantized)",
+      "kv_quant": "turbo3",
+      "pipeline_stages": "kv:turbo3",
+      "passed": true,
+      "pass_count": 4,
+      "fail_count": 0,
+      "duration_s": 5.13,
+      "steps": [
+        {
+          "name": "detect_model_precision",
+          "passed": true,
+          "duration_s": 0.0,
+          "details": "Model gemma-4-e4b-it-Q4_K_M: precision=weight_quantized (quant=Q4_K_M, format=gguf)",
+          "metrics": {
+            "precision": "weight_quantized",
+            "quantization": "Q4_K_M",
+            "format": "gguf"
+          }
+        },
+        {
+          "name": "plan_quantization_pipeline",
+          "passed": true,
+          "duration_s": 5.1302,
+          "details": "Pipeline: kv:turbo3 | Weight: Model already weight-quantized (Q4_K_M gguf) | KV: Applying turbo3 KV compression (4.6x, Minimal loss (+1.06% PPL))",
+          "metrics": {
+            "model_precision": "weight_quantized",
+            "needs_weight_quant": false,
+            "weight_quant_method": "",
+            "needs_kv_compression": true,
+            "kv_level": "turbo3",
+            "stages": [
+              "kv:turbo3"
+            ],
+            "summary": "kv:turbo3"
+          }
+        },
+        {
+          "name": "verify_kv_params_llama",
+          "passed": true,
+          "duration_s": 0.0,
+          "details": "KV params for turbo3: {'cache_type_k': 'turbo3', 'cache_type_v': 'turbo3'}",
+          "metrics": {
+            "kv_level": "turbo3",
+            "params": {
+              "cache_type_k": "turbo3",
+              "cache_type_v": "turbo3"
+            }
+          }
+        },
+        {
+          "name": "verify_kv_only_pipeline",
+          "passed": true,
+          "duration_s": 0.0,
+          "details": "Weight quant needed: False (expected: False for pre-quantized GGUF)",
+          "metrics": {}
+        }
+      ]
+    },
+    {
+      "name": "Test 2: llama.cpp Qwen 3 4B Q4_K_M + turbo3 KV",
+      "model_id": "qwen3-4b-Q4_K_M",
+      "engine": "llama.cpp",
+      "quantization": "Q4_K_M (pre-quantized)",
+      "kv_quant": "turbo3",
+      "pipeline_stages": "kv:turbo3",
+      "passed": true,
+      "pass_count": 7,
+      "fail_count": 0,
+      "duration_s": 4.533,
+      "steps": [
+        {
+          "name": "detect_model_precision",
+          "passed": true,
+          "duration_s": 0.0,
+          "details": "Model qwen3-4b-Q4_K_M: precision=weight_quantized (quant=Q4_K_M, format=gguf)",
+          "metrics": {
+            "precision": "weight_quantized",
+            "quantization": "Q4_K_M",
+            "format": "gguf"
+          }
+        },
+        {
+          "name": "plan_quantization_pipeline",
+          "passed": true,
+          "duration_s": 4.5329,
+          "details": "Pipeline: kv:turbo3 | Weight: Model already weight-quantized (Q4_K_M gguf) | KV: Applying turbo3 KV compression (4.6x, Minimal loss (+1.06% PPL))",
+          "metrics": {
+            "model_precision": "weight_quantized",
+            "needs_weight_quant": false,
+            "weight_quant_method": "",
+            "needs_kv_compression": true,
+            "kv_level": "turbo3",
+            "stages": [
+              "kv:turbo3"
+            ],
+            "summary": "kv:turbo3"
+          }
+        },
+        {
+          "name": "verify_kv_params_llama",
+          "passed": true,
+          "duration_s": 0.0,
+          "details": "KV params for turbo3: {'cache_type_k': 'turbo3', 'cache_type_v': 'turbo3'}",
+          "metrics": {
+            "kv_level": "turbo3",
+            "params": {
+              "cache_type_k": "turbo3",
+              "cache_type_v": "turbo3"
+            }
+          }
+        },
+        {
+          "name": "verify_kv_params_llama",
+          "passed": true,
+          "duration_s": 0.0,
+          "details": "KV params for turbo4: {'cache_type_k': 'turbo4', 'cache_type_v': 'turbo4'}",
+          "metrics": {
+            "kv_level": "turbo4",
+            "params": {
+              "cache_type_k": "turbo4",
+              "cache_type_v": "turbo4"
+            }
+          }
+        },
+        {
+          "name": "verify_kv_params_llama",
+          "passed": true,
+          "duration_s": 0.0,
+          "details": "KV params for turbo3: {'cache_type_k': 'turbo3', 'cache_type_v': 'turbo3'}",
+          "metrics": {
+            "kv_level": "turbo3",
+            "params": {
+              "cache_type_k": "turbo3",
+              "cache_type_v": "turbo3"
+            }
+          }
+        },
+        {
+          "name": "verify_kv_params_llama",
+          "passed": true,
+          "duration_s": 0.0,
+          "details": "KV params for turbo2: {'cache_type_k': 'turbo2', 'cache_type_v': 'turbo2'}",
+          "metrics": {
+            "kv_level": "turbo2",
+            "params": {
+              "cache_type_k": "turbo2",
+              "cache_type_v": "turbo2"
+            }
+          }
+        },
+        {
+          "name": "verify_kv_only_pipeline",
+          "passed": true,
+          "duration_s": 0.0,
+          "details": "Weight quant needed: False (expected: False for pre-quantized GGUF)",
+          "metrics": {}
+        }
+      ]
+    },
+    {
+      "name": "Test 3: vLLM Qwen 3 4B BF16 + bnb INT4 + turboquant35 KV",
+      "model_id": "qwen3-4b-vllm",
+      "engine": "vllm",
+      "quantization": "BF16 \u2192 bnb INT4",
+      "kv_quant": "turboquant35",
+      "pipeline_stages": "kv:turbo3",
+      "passed": true,
+      "pass_count": 5,
+      "fail_count": 0,
+      "duration_s": 4.252,
+      "steps": [
+        {
+          "name": "detect_model_precision",
+          "passed": true,
+          "duration_s": 0.0,
+          "details": "Model qwen3-4b-vllm: precision=full_precision (quant=BF16, format=safetensors)",
+          "metrics": {
+            "precision": "full_precision",
+            "quantization": "BF16",
+            "format": "safetensors"
+          }
+        },
+        {
+          "name": "verify_full_precision",
+          "passed": true,
+          "duration_s": 0.0,
+          "details": "Precision: full_precision (expected: full_precision)",
+          "metrics": {}
+        },
+        {
+          "name": "plan_quantization_pipeline",
+          "passed": true,
+          "duration_s": 4.2522,
+          "details": "Pipeline: kv:turbo3 | Weight: Model is BF16 \u2014 too large for 4096 MB VRAM even with INT4 quantization (may need smaller model or more VRAM) | KV: Applying turbo3 KV compression (4.6x, Minimal loss (+1.06% PPL))",
+          "metrics": {
+            "model_precision": "full_precision",
+            "needs_weight_quant": false,
+            "weight_quant_method": "",
+            "needs_kv_compression": true,
+            "kv_level": "turbo3",
+            "stages": [
+              "kv:turbo3"
+            ],
+            "summary": "kv:turbo3"
+          }
+        },
+        {
+          "name": "verify_kv_params_vllm",
+          "passed": true,
+          "duration_s": 0.0,
+          "details": "KV params for turbo3: {'kv_cache_dtype': 'turboquant35', 'enable_turboquant': True, 'attention_backend': 'TRITON_ATTN'}",
+          "metrics": {
+            "kv_level": "turbo3",
+            "params": {
+              "kv_cache_dtype": "turboquant35",
+              "enable_turboquant": true,
+              "attention_backend": "TRITON_ATTN"
+            }
+          }
+        },
+        {
+          "name": "verify_dual_pipeline",
+          "passed": true,
+          "duration_s": 0.0,
+          "details": "Pipeline stages: ['kv:turbo3']. Weight quant: False (). KV: True (turbo3)",
+          "metrics": {}
+        }
+      ]
+    },
+    {
+      "name": "Test 4: vLLM Qwen 3 4B AWQ + turboquant35 KV",
+      "model_id": "qwen3-4b-AWQ",
+      "engine": "vllm",
+      "quantization": "AWQ (pre-quantized)",
+      "kv_quant": "turboquant35",
+      "pipeline_stages": "kv:turbo3",
+      "passed": true,
+      "pass_count": 5,
+      "fail_count": 0,
+      "duration_s": 4.165,
+      "steps": [
+        {
+          "name": "detect_model_precision",
+          "passed": true,
+          "duration_s": 0.0,
+          "details": "Model qwen3-4b-AWQ: precision=weight_quantized (quant=AWQ, format=awq)",
+          "metrics": {
+            "precision": "weight_quantized",
+            "quantization": "AWQ",
+            "format": "awq"
+          }
+        },
+        {
+          "name": "verify_weight_quantized",
+          "passed": true,
+          "duration_s": 0.0,
+          "details": "Precision: weight_quantized (expected: weight_quantized)",
+          "metrics": {}
+        },
+        {
+          "name": "plan_quantization_pipeline",
+          "passed": true,
+          "duration_s": 4.1652,
+          "details": "Pipeline: kv:turbo3 | Weight: Model already weight-quantized (AWQ awq) | KV: Applying turbo3 KV compression (4.6x, Minimal loss (+1.06% PPL))",
+          "metrics": {
+            "model_precision": "weight_quantized",
+            "needs_weight_quant": false,
+            "weight_quant_method": "",
+            "needs_kv_compression": true,
+            "kv_level": "turbo3",
+            "stages": [
+              "kv:turbo3"
+            ],
+            "summary": "kv:turbo3"
+          }
+        },
+        {
+          "name": "verify_kv_only_pipeline",
+          "passed": true,
+          "duration_s": 0.0,
+          "details": "Weight quant needed: False (expected: False for AWQ)",
+          "metrics": {}
+        },
+        {
+          "name": "verify_kv_params_vllm",
+          "passed": true,
+          "duration_s": 0.0,
+          "details": "KV params for turbo3: {'kv_cache_dtype': 'turboquant35', 'enable_turboquant': True, 'attention_backend': 'TRITON_ATTN'}",
+          "metrics": {
+            "kv_level": "turbo3",
+            "params": {
+              "kv_cache_dtype": "turboquant35",
+              "enable_turboquant": true,
+              "attention_backend": "TRITON_ATTN"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Test 5: Baseline (no KV compression)",
+      "model_id": "multiple",
+      "engine": "both",
+      "quantization": "various",
+      "kv_quant": "none",
+      "pipeline_stages": "",
+      "passed": true,
+      "pass_count": 8,
+      "fail_count": 0,
+      "duration_s": 13.247,
+      "steps": [
+        {
+          "name": "plan_quantization_pipeline",
+          "passed": true,
+          "duration_s": 4.3574,
+          "details": "Pipeline: No quantization applied | Weight: Model already weight-quantized (Q4_K_M gguf) | KV: KV compression disabled by user (--kv-quant none)",
+          "metrics": {
+            "model_precision": "weight_quantized",
+            "needs_weight_quant": false,
+            "weight_quant_method": "",
+            "needs_kv_compression": false,
+            "kv_level": "none",
+            "stages": [],
+            "summary": "No quantization applied"
+          }
+        },
+        {
+          "name": "verify_no_kv_qwen3-4b-Q4_K_M",
+          "passed": true,
+          "duration_s": 0.0,
+          "details": "KV level: none (expected: none for --kv-quant none)",
+          "metrics": {}
+        },
+        {
+          "name": "plan_quantization_pipeline",
+          "passed": true,
+          "duration_s": 3.4669,
+          "details": "Pipeline: No quantization applied | Weight: Model already weight-quantized (AWQ awq) | KV: KV compression disabled by user (--kv-quant none)",
+          "metrics": {
+            "model_precision": "weight_quantized",
+            "needs_weight_quant": false,
+            "weight_quant_method": "",
+            "needs_kv_compression": false,
+            "kv_level": "none",
+            "stages": [],
+            "summary": "No quantization applied"
+          }
+        },
+        {
+          "name": "verify_no_kv_qwen3-4b-AWQ",
+          "passed": true,
+          "duration_s": 0.0,
+          "details": "KV level: none (expected: none for --kv-quant none)",
+          "metrics": {}
+        },
+        {
+          "name": "plan_quantization_pipeline",
+          "passed": true,
+          "duration_s": 5.4225,
+          "details": "Pipeline: No quantization applied | Weight: Model is BF16 \u2014 too large for 4096 MB VRAM even with INT4 quantization (may need smaller model or more VRAM) | KV: KV compression disabled by user (--kv-quant none)",
+          "metrics": {
+            "model_precision": "full_precision",
+            "needs_weight_quant": false,
+            "weight_quant_method": "",
+            "needs_kv_compression": false,
+            "kv_level": "none",
+            "stages": [],
+            "summary": "No quantization applied"
+          }
+        },
+        {
+          "name": "verify_no_kv_qwen3-4b-vllm",
+          "passed": true,
+          "duration_s": 0.0,
+          "details": "KV level: none (expected: none for --kv-quant none)",
+          "metrics": {}
+        },
+        {
+          "name": "verify_kv_params_llama",
+          "passed": true,
+          "duration_s": 0.0,
+          "details": "KV params for none: {'cache_type_k': 'f16', 'cache_type_v': 'f16'}",
+          "metrics": {
+            "kv_level": "none",
+            "params": {
+              "cache_type_k": "f16",
+              "cache_type_v": "f16"
+            }
+          }
+        },
+        {
+          "name": "verify_kv_params_vllm",
+          "passed": true,
+          "duration_s": 0.0,
+          "details": "KV params for none: {}",
+          "metrics": {
+            "kv_level": "none",
+            "params": {}
+          }
+        }
+      ]
+    },
+    {
+      "name": "Test 6: CUDA compatibility + graceful degradation",
+      "model_id": "n/a",
+      "engine": "both",
+      "quantization": "n/a",
+      "kv_quant": "auto",
+      "pipeline_stages": "",
+      "passed": true,
+      "pass_count": 13,
+      "fail_count": 0,
+      "duration_s": 12.79,
+      "steps": [
+        {
+          "name": "check_cuda_compatibility",
+          "passed": true,
+          "duration_s": 6.3859,
+          "details": "TurboQuant available=True, toolkit=12.8, driver=13.0: TurboQuant KV cache available (llama.cpp, vLLM)",
+          "metrics": {
+            "turboquant_available": true,
+            "cuda_toolkit": "12.8",
+            "cuda_driver": "13.0",
+            "message": "TurboQuant KV cache available (llama.cpp, vLLM)"
+          }
+        },
+        {
+          "name": "parse_cuda_12.8",
+          "passed": true,
+          "duration_s": 0.0,
+          "details": "parse_cuda_version('12.8') = (12, 8) (expected (12, 8))",
+          "metrics": {}
+        },
+        {
+          "name": "parse_cuda_11.5",
+          "passed": true,
+          "duration_s": 0.0,
+          "details": "parse_cuda_version('11.5') = (11, 5) (expected (11, 5))",
+          "metrics": {}
+        },
+        {
+          "name": "parse_cuda_13.0",
+          "passed": true,
+          "duration_s": 0.0,
+          "details": "parse_cuda_version('13.0') = (13, 0) (expected (13, 0))",
+          "metrics": {}
+        },
+        {
+          "name": "parse_cuda_empty",
+          "passed": true,
+          "duration_s": 0.0,
+          "details": "parse_cuda_version('') = (0, 0) (expected (0, 0))",
+          "metrics": {}
+        },
+        {
+          "name": "parse_cuda_invalid",
+          "passed": true,
+          "duration_s": 0.0,
+          "details": "parse_cuda_version('invalid') = (0, 0) (expected (0, 0))",
+          "metrics": {}
+        },
+        {
+          "name": "verify_compatibility_matches_cuda",
+          "passed": true,
+          "duration_s": 0.0,
+          "details": "CUDA 12.8: available=True (expected=True)",
+          "metrics": {}
+        },
+        {
+          "name": "plan_quantization_pipeline",
+          "passed": true,
+          "duration_s": 6.4042,
+          "details": "Pipeline: kv:turbo3 | Weight: Model already weight-quantized (Q4_K_M gguf) | KV: Applying turbo3 KV compression (4.6x, Minimal loss (+1.06% PPL))",
+          "metrics": {
+            "model_precision": "weight_quantized",
+            "needs_weight_quant": false,
+            "weight_quant_method": "",
+            "needs_kv_compression": true,
+            "kv_level": "turbo3",
+            "stages": [
+              "kv:turbo3"
+            ],
+            "summary": "kv:turbo3"
+          }
+        },
+        {
+          "name": "verify_turbo3_when_available",
+          "passed": true,
+          "duration_s": 0.0,
+          "details": "KV level: turbo3 (expected: turbo3 since TurboQuant is available)",
+          "metrics": {}
+        },
+        {
+          "name": "verify_ratio_none",
+          "passed": true,
+          "duration_s": 0.0,
+          "details": "none: 1.0x compression, Baseline",
+          "metrics": {
+            "compression_ratio": 1.0,
+            "bits_per_value": 8.5
+          }
+        },
+        {
+          "name": "verify_ratio_turbo4",
+          "passed": true,
+          "duration_s": 0.0,
+          "details": "turbo4: 3.8x compression, Near-lossless (+0.23% PPL)",
+          "metrics": {
+            "compression_ratio": 3.8,
+            "bits_per_value": 4.25
+          }
+        },
+        {
+          "name": "verify_ratio_turbo3",
+          "passed": true,
+          "duration_s": 0.0,
+          "details": "turbo3: 4.6x compression, Minimal loss (+1.06% PPL)",
+          "metrics": {
+            "compression_ratio": 4.6,
+            "bits_per_value": 3.5
+          }
+        },
+        {
+          "name": "verify_ratio_turbo2",
+          "passed": true,
+          "duration_s": 0.0,
+          "details": "turbo2: 6.4x compression, Noticeable loss (+6.48% PPL)",
+          "metrics": {
+            "compression_ratio": 6.4,
+            "bits_per_value": 2.5
+          }
+        }
+      ]
+    }
+  ]
+}
