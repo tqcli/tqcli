@@ -305,6 +305,111 @@ BUILTIN_PROFILES: list[ModelProfile] = [
         supports_thinking=True,
         active_params="3B",
     ),
+    # ── vLLM Profiles (SafeTensors / AWQ) ─────────────────────────────
+    # These profiles use HuggingFace model repos (not single GGUF files).
+    # vLLM loads the entire repo, so filename is empty and format reflects
+    # the quantization method.  model_pull downloads the full snapshot.
+    # Gemma 4 vLLM profiles — VRAM requirements from official vLLM Gemma 4 recipe:
+    # E2B BF16 ~5 GB, E4B BF16 ~9 GB.  Both need ~15% framework overhead.
+    # Multimodal: image + audio + video via SigLIP encoder.
+    ModelProfile(
+        id="gemma-4-e2b-it-vllm",
+        family="gemma4",
+        display_name="Gemma 4 E2B Edge Instruct (vLLM BF16)",
+        hf_repo="google/gemma-4-e2b-it",
+        filename="",  # vLLM loads entire repo
+        parameter_count="2.3B",
+        quantization="BF16",
+        format="safetensors",
+        context_length=131072,
+        strengths=[TaskDomain.GENERAL, TaskDomain.INSTRUCTION],
+        strength_scores={
+            "coding": 0.40,
+            "reasoning": 0.50,
+            "general": 0.58,
+            "math": 0.45,
+            "creative": 0.52,
+            "instruction": 0.55,
+        },
+        min_ram_mb=6000,
+        min_vram_mb=6000,  # ~5 GB model + overhead; 6 GB safe minimum
+        engine="vllm",
+        supports_thinking=True,
+        multimodal=True,
+    ),
+    ModelProfile(
+        id="gemma-4-e4b-it-vllm",
+        family="gemma4",
+        display_name="Gemma 4 E4B Edge Instruct (vLLM BF16)",
+        hf_repo="google/gemma-4-e4b-it",
+        filename="",
+        parameter_count="4.5B",
+        quantization="BF16",
+        format="safetensors",
+        context_length=131072,
+        strengths=[TaskDomain.GENERAL, TaskDomain.INSTRUCTION],
+        strength_scores={
+            "coding": 0.55,
+            "reasoning": 0.65,
+            "general": 0.72,
+            "math": 0.58,
+            "creative": 0.65,
+            "instruction": 0.70,
+        },
+        min_ram_mb=12000,
+        min_vram_mb=10000,  # ~9 GB model + overhead; 10 GB safe minimum
+        engine="vllm",
+        supports_thinking=True,
+        multimodal=True,
+    ),
+    ModelProfile(
+        id="qwen3-4b-AWQ",
+        family="qwen3",
+        display_name="Qwen3 4B (AWQ INT4, vLLM)",
+        hf_repo="Qwen/Qwen3-4B-AWQ",
+        filename="",  # vLLM loads entire repo
+        parameter_count="4B",
+        quantization="AWQ",
+        format="awq",
+        context_length=32768,
+        strengths=[TaskDomain.GENERAL, TaskDomain.INSTRUCTION],
+        strength_scores={
+            "coding": 0.58,
+            "reasoning": 0.68,
+            "general": 0.70,
+            "math": 0.62,
+            "creative": 0.62,
+            "instruction": 0.68,
+        },
+        min_ram_mb=3500,
+        min_vram_mb=3000,
+        engine="vllm",
+        supports_thinking=True,
+    ),
+    ModelProfile(
+        id="qwen3-8b-AWQ",
+        family="qwen3",
+        display_name="Qwen3 8B (AWQ INT4, vLLM)",
+        hf_repo="Qwen/Qwen3-8B-AWQ",
+        filename="",
+        parameter_count="8B",
+        quantization="AWQ",
+        format="awq",
+        context_length=128000,
+        strengths=[TaskDomain.REASONING, TaskDomain.GENERAL, TaskDomain.INSTRUCTION],
+        strength_scores={
+            "coding": 0.68,
+            "reasoning": 0.78,
+            "general": 0.80,
+            "math": 0.72,
+            "creative": 0.72,
+            "instruction": 0.78,
+        },
+        min_ram_mb=6000,
+        min_vram_mb=5000,
+        engine="vllm",
+        supports_thinking=True,
+    ),
 ]
 
 
@@ -321,11 +426,22 @@ class ModelRegistry:
         found = []
         if not self.models_dir.exists():
             return found
+        # Scan GGUF single-file models (llama.cpp)
         for f in self.models_dir.rglob("*.gguf"):
             for profile in self._profiles.values():
-                if f.name.lower() == profile.filename.lower():
+                if profile.format == "gguf" and f.name.lower() == profile.filename.lower():
                     profile.local_path = f
                     found.append(profile)
+        # Scan vLLM model directories (safetensors/awq downloaded as repo snapshots)
+        for profile in self._profiles.values():
+            if profile.engine == "vllm" and profile.format in ("safetensors", "awq"):
+                # vLLM models are stored as directories named after the model ID
+                model_dir = self.models_dir / profile.id
+                if model_dir.is_dir():
+                    # Verify it has config.json (valid HF model)
+                    if (model_dir / "config.json").exists():
+                        profile.local_path = model_dir
+                        found.append(profile)
         return found
 
     def get_available_models(self) -> list[ModelProfile]:

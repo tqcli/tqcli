@@ -17,19 +17,33 @@ class VllmBackend(InferenceEngine):
     def __init__(
         self,
         max_model_len: int = 4096,
-        gpu_memory_utilization: float = 0.85,
+        gpu_memory_utilization: float = 0.80,
         quantization: str | None = None,
         tensor_parallel_size: int = 1,
         kv_cache_dtype: str = "auto",
+        enforce_eager: bool = False,
     ):
         self._max_model_len = max_model_len
         self._gpu_memory_utilization = gpu_memory_utilization
         self._quantization = quantization
         self._tensor_parallel_size = tensor_parallel_size
         self._kv_cache_dtype = kv_cache_dtype
+        self._enforce_eager = enforce_eager
         self._llm = None
         self._model_name: str = ""
         self._tokenizer = None
+
+    @classmethod
+    def from_tuning_profile(cls, profile) -> "VllmBackend":
+        """Create a VllmBackend pre-configured from a VllmTuningProfile."""
+        return cls(
+            max_model_len=profile.max_model_len,
+            gpu_memory_utilization=profile.gpu_memory_utilization,
+            quantization=profile.quantization,
+            tensor_parallel_size=profile.tensor_parallel_size,
+            kv_cache_dtype=profile.kv_cache_dtype,
+            enforce_eager=profile.enforce_eager,
+        )
 
     @property
     def engine_name(self) -> str:
@@ -56,7 +70,10 @@ class VllmBackend(InferenceEngine):
             "tensor_parallel_size": kwargs.get(
                 "tensor_parallel_size", self._tensor_parallel_size
             ),
+            "trust_remote_code": True,
         }
+        if kwargs.get("enforce_eager", self._enforce_eager):
+            params["enforce_eager"] = True
         if self._quantization:
             params["quantization"] = self._quantization
         if self._kv_cache_dtype != "auto":
@@ -64,27 +81,42 @@ class VllmBackend(InferenceEngine):
 
         self._llm = LLM(**params)
         self._model_name = model_path
+        # Cache the tokenizer for chat template formatting
+        self._tokenizer = self._llm.get_tokenizer()
 
     def unload_model(self) -> None:
         if self._llm is not None:
             del self._llm
             self._llm = None
             self._model_name = ""
+            self._tokenizer = None
 
     @property
     def is_loaded(self) -> bool:
         return self._llm is not None
 
-    def _format_chat_prompt(self, messages: list[ChatMessage]) -> str:
+    def _messages_to_dicts(self, messages: list[ChatMessage]) -> list[dict]:
+        """Convert ChatMessage list to OpenAI-style message dicts."""
+        return [{"role": m.role, "content": m.content} for m in messages]
+
+    def _apply_chat_template(self, messages: list[ChatMessage]) -> str:
+        """Format messages using the model's tokenizer chat template."""
+        msg_dicts = self._messages_to_dicts(messages)
+        if self._tokenizer and hasattr(self._tokenizer, "apply_chat_template"):
+            return self._tokenizer.apply_chat_template(
+                msg_dicts,
+                tokenize=False,
+                add_generation_prompt=True,
+            )
+        # Fallback for tokenizers without chat template
+        return self._fallback_format(messages)
+
+    def _fallback_format(self, messages: list[ChatMessage]) -> str:
+        """Fallback prompt formatting when tokenizer has no chat template."""
         parts = []
         for msg in messages:
-            if msg.role == "system":
-                parts.append(f"<|system|>\n{msg.content}")
-            elif msg.role == "user":
-                parts.append(f"<|user|>\n{msg.content}")
-            elif msg.role == "assistant":
-                parts.append(f"<|assistant|>\n{msg.content}")
-        parts.append("<|assistant|>\n")
+            parts.append(f"{msg.role}: {msg.content}")
+        parts.append("assistant:")
         return "\n".join(parts)
 
     def chat(self, messages: list[ChatMessage], **kwargs) -> CompletionResult:
@@ -93,7 +125,7 @@ class VllmBackend(InferenceEngine):
 
         from vllm import SamplingParams
 
-        prompt = self._format_chat_prompt(messages)
+        prompt = self._apply_chat_template(messages)
         sampling = SamplingParams(
             max_tokens=kwargs.get("max_tokens", 1024),
             temperature=kwargs.get("temperature", 0.7),

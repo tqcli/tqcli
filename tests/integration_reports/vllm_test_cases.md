@@ -1,6 +1,6 @@
 # tqCLI vLLM Backend Test Cases
 
-**Status:** NOT EXECUTED — test cases documented for future execution
+**Status:** EXECUTED — see `vllm_test_report.md` and `vllm_test_report.json` for results
 **Backend:** vLLM (>=0.6.0)
 **Prerequisites:** Linux with NVIDIA GPU (8+ GB VRAM recommended), CUDA toolkit installed
 

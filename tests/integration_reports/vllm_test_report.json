@@ -1,0 +1,390 @@
+{
+  "system_info": {
+    "os": "Linux (Ubuntu 22.04.4 LTS) (WSL2)",
+    "arch": "x86_64",
+    "cpu_cores": 16,
+    "cpu_physical": 8,
+    "ram_total_mb": 31956,
+    "ram_available_mb": 24686,
+    "gpu": "NVIDIA RTX A2000 Laptop GPU",
+    "vram_mb": 4096,
+    "recommended_engine": "llama.cpp",
+    "recommended_quant": "Q3_K_M",
+    "max_model_gb": 3.4,
+    "is_wsl": true,
+    "vllm_available": true
+  },
+  "vllm_version": "0.19.0",
+  "results": [
+    {
+      "test_name": "Test 1: Qwen 3 4B AWQ + vLLM Full Lifecycle",
+      "model_id": "qwen3-4b-AWQ",
+      "model_family": "qwen3",
+      "engine": "vllm",
+      "started": "2026-04-14 10:08:10",
+      "finished": "2026-04-14 10:12:58",
+      "total_duration_s": 286.2315855026245,
+      "passed": true,
+      "pass_count": 10,
+      "fail_count": 0,
+      "steps": [
+        {
+          "name": "hardware_model_selection",
+          "passed": true,
+          "duration_s": 4.458427429199219e-05,
+          "details": "Selected qwen3-4b-AWQ (4B, AWQ) from 1 fitting vLLM models",
+          "metrics": {
+            "selected_model": "qwen3-4b-AWQ",
+            "params": "4B",
+            "quant": "AWQ",
+            "format": "awq",
+            "min_ram_mb": 3500,
+            "min_vram_mb": 3000,
+            "fitting_models": 1,
+            "total_vllm_models_in_family": 2
+          }
+        },
+        {
+          "name": "verify_vllm_quantization",
+          "passed": true,
+          "duration_s": 4.76837158203125e-06,
+          "details": "Quantization: AWQ, Format: awq, Engine: vllm",
+          "metrics": {
+            "quantization": "AWQ",
+            "format": "awq",
+            "engine": "vllm",
+            "is_vllm_compatible": true
+          }
+        },
+        {
+          "name": "download_model",
+          "passed": true,
+          "duration_s": 83.01489877700806,
+          "details": "Downloaded to /root/.tqcli/models/qwen3-4b-AWQ (2558 MB) in 83.0s",
+          "metrics": {
+            "size_mb": 2557.7,
+            "path": "/root/.tqcli/models/qwen3-4b-AWQ",
+            "cached": false
+          }
+        },
+        {
+          "name": "load_model",
+          "passed": true,
+          "duration_s": 164.39503169059753,
+          "details": "Loaded Qwen3 4B (AWQ INT4, vLLM) via vLLM in 164.4s",
+          "metrics": {
+            "load_time_s": 164.4,
+            "max_model_len": 226,
+            "gpu_memory_utilization": 0.8,
+            "enforce_eager": true,
+            "kv_cache_dtype": "auto",
+            "quantization": "awq_marlin",
+            "tuning_warnings": [
+              "enforce_eager=True (saves ~1 GB VRAM on small GPUs)",
+              "Very short context (226 tokens) due to limited VRAM"
+            ]
+          }
+        },
+        {
+          "name": "chat_turn_1",
+          "passed": true,
+          "duration_s": 13.118491411209106,
+          "details": "Response (381 chars): <think>\nOkay, the user is asking what 2 + 2 is and wants the answer just with the number. Let me think. Well, 2 plus 2 is a basic arithmetic problem. The answer should be 4. The user specified to answ...",
+          "metrics": {
+            "tokens_per_second": 7.56,
+            "completion_tokens": 99,
+            "completion_time_s": 13.1,
+            "total_time_s": 13.1
+          }
+        },
+        {
+          "name": "chat_turn_2",
+          "passed": true,
+          "duration_s": 16.84579634666443,
+          "details": "Response (440 chars): <think>\nOkay, the user is asking, \"What is 4 times 10? Answer with just the number.\" Let me think. The question is straightforward multiplication. 4 multiplied by 10. Well, 4 times 10 is 40. The user ...",
+          "metrics": {
+            "tokens_per_second": 7.48,
+            "completion_tokens": 126,
+            "completion_time_s": 16.85,
+            "total_time_s": 16.85
+          }
+        },
+        {
+          "name": "generate_skill",
+          "passed": true,
+          "duration_s": 0.33228135108947754,
+          "details": "Created skill at /root/.tqcli/skills/test-qwen3-vllm-skill: Skill created: /root/.tqcli/skills/test-qwen3-vllm-skill\n  SKILL.md:  /root/.tqcli/skills/test-qwen3-vllm-skill/SKILL.md\n  Script:    \n/root/.tqcli/skills/test-qwen3-vllm-skill/scripts/run_test_qwen3_vllm_skill.py\n\nList skills with: tqcli skill list",
+          "metrics": {
+            "skill_name": "test-qwen3-vllm-skill",
+            "skill_dir": "/root/.tqcli/skills/test-qwen3-vllm-skill"
+          }
+        },
+        {
+          "name": "verify_skill",
+          "passed": true,
+          "duration_s": 0.4463996887207031,
+          "details": "Output: Running run_test_qwen3_vllm_skill.py...\n{\n  \"skill\": \"test-qwen3-vllm-skill\",\n  \"status\": \"completed\",\n  \"message\": \"Skill test-qwen3-vllm-skill executed successfully\"\n}\nScript run_test_qwen3_vllm_skill.py completed.",
+          "metrics": {}
+        },
+        {
+          "name": "remove_model",
+          "passed": true,
+          "duration_s": 1.0180983543395996,
+          "details": "Removed model directory: /root/.tqcli/models/qwen3-4b-AWQ",
+          "metrics": {}
+        },
+        {
+          "name": "clean_uninstall_check",
+          "passed": true,
+          "duration_s": 7.0605385303497314,
+          "details": "Package is installed and can be cleanly uninstalled via 'pip3 uninstall tqcli'",
+          "metrics": {
+            "installed": true
+          }
+        }
+      ]
+    },
+    {
+      "test_name": "Test 2: Gemma 4 E2B BF16 + vLLM Full Lifecycle",
+      "model_id": "",
+      "model_family": "gemma4",
+      "engine": "vllm",
+      "started": "2026-04-14 10:12:58",
+      "finished": "2026-04-14 10:13:00",
+      "total_duration_s": 2.7179718017578125e-05,
+      "passed": true,
+      "pass_count": 2,
+      "fail_count": 0,
+      "steps": [
+        {
+          "name": "hardware_model_selection",
+          "passed": true,
+          "duration_s": 2.7179718017578125e-05,
+          "details": "No vLLM gemma4 model fits hardware (RAM=23916MB, VRAM=4096MB) [EXPECTED: Gemma 4 BF16 needs >= 6 GB VRAM]",
+          "metrics": {}
+        },
+        {
+          "name": "hw_limitation_note",
+          "passed": true,
+          "duration_s": 0.0,
+          "details": "Gemma 4 vLLM models require >= 6 GB VRAM. System has 4096 MB. This is a hardware limitation, not a bug.",
+          "metrics": {}
+        }
+      ]
+    },
+    {
+      "test_name": "Test 3: Qwen 3 Multi-Process + Yolo Mode CRM Build (vLLM)",
+      "model_id": "qwen3-4b-AWQ",
+      "model_family": "qwen3",
+      "engine": "vllm (server)",
+      "started": "2026-04-14 10:13:00",
+      "finished": "2026-04-14 10:15:21",
+      "total_duration_s": 141.1217176914215,
+      "passed": true,
+      "pass_count": 12,
+      "fail_count": 0,
+      "steps": [
+        {
+          "name": "hardware_model_selection",
+          "passed": true,
+          "duration_s": 3.170967102050781e-05,
+          "details": "Selected qwen3-4b-AWQ (4B, AWQ) from 1 fitting vLLM models",
+          "metrics": {
+            "selected_model": "qwen3-4b-AWQ",
+            "params": "4B",
+            "quant": "AWQ",
+            "format": "awq",
+            "min_ram_mb": 3500,
+            "min_vram_mb": 3000,
+            "fitting_models": 1,
+            "total_vllm_models_in_family": 2
+          }
+        },
+        {
+          "name": "download_model",
+          "passed": true,
+          "duration_s": 65.1111626625061,
+          "details": "Downloaded to /root/.tqcli/models/qwen3-4b-AWQ (2558 MB) in 65.1s",
+          "metrics": {
+            "size_mb": 2557.7,
+            "path": "/root/.tqcli/models/qwen3-4b-AWQ",
+            "cached": false
+          }
+        },
+        {
+          "name": "multiprocess_assessment_yolo",
+          "passed": true,
+          "duration_s": 0.004917144775390625,
+          "details": "Engine: vllm, Max workers: 1, Recommended: 1",
+          "metrics": {
+            "engine": "vllm",
+            "max_workers": 1,
+            "recommended_workers": 1,
+            "feasible": true,
+            "warnings": [
+              "vLLM multi-process needs 8+ GB VRAM for a 7B model. You have 4096 MB. Consider llama.cpp instead.",
+              "Resource limits exceeded but proceeding anyway (stop-trying-to-control-everything-and-just-let-go mode). System may become unresponsive."
+            ],
+            "unrestricted": true
+          }
+        },
+        {
+          "name": "multiprocess_serve_start",
+          "passed": true,
+          "duration_s": 59.7097601890564,
+          "details": "Output: \u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510\n\u2502  stop-trying-to-control-everything-and-just-let-go mode ACTIVE \u2502\n\u2502                                                                 \u2502\n\u2502  Resource guards:     BYPASSED                                  \u2502\n\u2502  Confirmation prompts: SUPP",
+          "metrics": {}
+        },
+        {
+          "name": "multiprocess_serve_status",
+          "passed": true,
+          "duration_s": 0.7239413261413574,
+          "details": "Output: Inference Server Status\n\n  Status:  running\n  PID:     120477\n  Engine:  vllm\n  Model:   /root/.tqcli/models/qwen3-4b-AWQ\n  URL:     http://127.0.0.1:8741\n  Health:  OK\n  Uptime:  56s",
+          "metrics": {}
+        },
+        {
+          "name": "generate_crm_skills",
+          "passed": true,
+          "duration_s": 1.6608521938323975,
+          "details": "Created 3/3 CRM skills",
+          "metrics": {
+            "skills_created": [
+              "crm-frontend-vllm",
+              "crm-backend-vllm",
+              "crm-database-vllm"
+            ]
+          }
+        },
+        {
+          "name": "create_crm_workspace",
+          "passed": true,
+          "duration_s": 0.004339456558227539,
+          "details": "Created CRM workspace at /llm_models_python_code_src/crm_workspace_vllm",
+          "metrics": {
+            "workspace": "/llm_models_python_code_src/crm_workspace_vllm",
+            "files_created": 3
+          }
+        },
+        {
+          "name": "verify_crm_workspace",
+          "passed": true,
+          "duration_s": 0.0001850128173828125,
+          "details": "Files: {'frontend/index.html': True, 'backend/app.py': True, 'database/schema.sql': True}",
+          "metrics": {
+            "frontend/index.html": true,
+            "backend/app.py": true,
+            "database/schema.sql": true
+          }
+        },
+        {
+          "name": "delete_crm_workspace",
+          "passed": true,
+          "duration_s": 0.0014319419860839844,
+          "details": "Deleted workspace at /llm_models_python_code_src/crm_workspace_vllm",
+          "metrics": {}
+        },
+        {
+          "name": "multiprocess_serve_stop",
+          "passed": true,
+          "duration_s": 3.772780656814575,
+          "details": "Output: Stopping inference server...\nServer stopped.",
+          "metrics": {}
+        },
+        {
+          "name": "remove_model",
+          "passed": true,
+          "duration_s": 1.435678482055664,
+          "details": "Removed model directory: /root/.tqcli/models/qwen3-4b-AWQ",
+          "metrics": {}
+        },
+        {
+          "name": "clean_uninstall_check",
+          "passed": true,
+          "duration_s": 8.69663691520691,
+          "details": "Package is installed and can be cleanly uninstalled via 'pip3 uninstall tqcli'",
+          "metrics": {
+            "installed": true
+          }
+        }
+      ]
+    },
+    {
+      "test_name": "Test 4: Gemma 4 Multi-Process + Yolo Mode CRM Build (vLLM)",
+      "model_id": "",
+      "model_family": "gemma4",
+      "engine": "vllm (server)",
+      "started": "2026-04-14 10:15:21",
+      "finished": "2026-04-14 10:15:34",
+      "total_duration_s": 10.72119402885437,
+      "passed": true,
+      "pass_count": 7,
+      "fail_count": 0,
+      "steps": [
+        {
+          "name": "hardware_model_selection",
+          "passed": true,
+          "duration_s": 5.412101745605469e-05,
+          "details": "No vLLM gemma4 model fits hardware (RAM=23829MB, VRAM=4096MB) [EXPECTED: Gemma 4 BF16 needs >= 6 GB VRAM]",
+          "metrics": {}
+        },
+        {
+          "name": "hw_limitation_note",
+          "passed": true,
+          "duration_s": 0.0,
+          "details": "Gemma 4 vLLM needs >= 6 GB VRAM. System has 4096 MB. Running CRM skills/workspace only.",
+          "metrics": {}
+        },
+        {
+          "name": "generate_crm_skills",
+          "passed": true,
+          "duration_s": 1.6816322803497314,
+          "details": "Created 3/3 CRM skills",
+          "metrics": {
+            "skills_created": [
+              "crm-frontend-vllm",
+              "crm-backend-vllm",
+              "crm-database-vllm"
+            ]
+          }
+        },
+        {
+          "name": "create_crm_workspace",
+          "passed": true,
+          "duration_s": 0.0036203861236572266,
+          "details": "Created CRM workspace at /llm_models_python_code_src/crm_workspace_vllm",
+          "metrics": {
+            "workspace": "/llm_models_python_code_src/crm_workspace_vllm",
+            "files_created": 3
+          }
+        },
+        {
+          "name": "verify_crm_workspace",
+          "passed": true,
+          "duration_s": 0.00021457672119140625,
+          "details": "Files: {'frontend/index.html': True, 'backend/app.py': True, 'database/schema.sql': True}",
+          "metrics": {
+            "frontend/index.html": true,
+            "backend/app.py": true,
+            "database/schema.sql": true
+          }
+        },
+        {
+          "name": "delete_crm_workspace",
+          "passed": true,
+          "duration_s": 0.0013322830200195312,
+          "details": "Deleted workspace at /llm_models_python_code_src/crm_workspace_vllm",
+          "metrics": {}
+        },
+        {
+          "name": "clean_uninstall_check",
+          "passed": true,
+          "duration_s": 9.034340381622314,
+          "details": "Package is installed and can be cleanly uninstalled via 'pip3 uninstall tqcli'",
+          "metrics": {
+            "installed": true
+          }
+        }
+      ]
+    }
+  ]
+}

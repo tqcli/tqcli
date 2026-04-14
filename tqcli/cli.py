@@ -147,7 +147,19 @@ def chat(ctx, model, engine, context_length, server_url):
 
     if selected_engine == "vllm":
         from tqcli.core.vllm_backend import VllmBackend
-        eng = VllmBackend(max_model_len=config.context_length)
+        from tqcli.core.vllm_config import build_vllm_config
+        # Auto-tune vLLM parameters based on hardware and model
+        target_for_tune = available[0]
+        if model:
+            target_for_tune = registry.get_profile(model) or target_for_tune
+        tune = build_vllm_config(target_for_tune, sys_info, requested_max_len=context_length)
+        if not tune.feasible and not unrestricted:
+            console.print(f"[red]vLLM not feasible: {tune.reason}[/red]")
+            console.print("Use --stop-trying-to-control-everything-and-just-let-go to bypass.")
+            return
+        for w in tune.warnings:
+            console.print(f"  [dim]vLLM: {w}[/dim]")
+        eng = VllmBackend.from_tuning_profile(tune)
     else:
         from tqcli.core.llama_backend import LlamaBackend
         eng = LlamaBackend(
@@ -290,22 +302,40 @@ def model_pull(model_id):
 
     console.print(f"Downloading [bold]{profile.display_name}[/bold]...")
     console.print(f"  From: {profile.hf_repo}")
-    console.print(f"  File: {profile.filename}")
-    console.print(f"  To:   {config.models_dir}/")
 
-    try:
-        from huggingface_hub import hf_hub_download
+    if profile.engine == "vllm" and profile.format in ("safetensors", "awq"):
+        # vLLM models: download the full repo snapshot into a named directory
+        console.print(f"  Mode: Full repo snapshot (vLLM)")
+        console.print(f"  To:   {config.models_dir}/{profile.id}/")
+        try:
+            from huggingface_hub import snapshot_download
 
-        path = hf_hub_download(
-            repo_id=profile.hf_repo,
-            filename=profile.filename,
-            local_dir=str(config.models_dir),
-            local_dir_use_symlinks=False,
-        )
-        sec.log_event("model_downloaded", {"model": model_id, "path": path})
-        console.print(f"\n[green]Downloaded:[/green] {path}")
-    except Exception as e:
-        console.print(f"\n[red]Download failed:[/red] {e}")
+            path = snapshot_download(
+                repo_id=profile.hf_repo,
+                local_dir=str(config.models_dir / profile.id),
+                local_dir_use_symlinks=False,
+            )
+            sec.log_event("model_downloaded", {"model": model_id, "path": path})
+            console.print(f"\n[green]Downloaded:[/green] {path}")
+        except Exception as e:
+            console.print(f"\n[red]Download failed:[/red] {e}")
+    else:
+        # GGUF models: download single file
+        console.print(f"  File: {profile.filename}")
+        console.print(f"  To:   {config.models_dir}/")
+        try:
+            from huggingface_hub import hf_hub_download
+
+            path = hf_hub_download(
+                repo_id=profile.hf_repo,
+                filename=profile.filename,
+                local_dir=str(config.models_dir),
+                local_dir_use_symlinks=False,
+            )
+            sec.log_event("model_downloaded", {"model": model_id, "path": path})
+            console.print(f"\n[green]Downloaded:[/green] {path}")
+        except Exception as e:
+            console.print(f"\n[red]Download failed:[/red] {e}")
 
 
 @model.command("remove")
@@ -327,11 +357,19 @@ def model_remove(ctx, model_id):
         return
 
     path = profile.local_path
-    size_mb = path.stat().st_size / (1024 * 1024)
     from tqcli.core.unrestricted import is_unrestricted
-    if is_unrestricted(ctx) or click.confirm(f"Remove {profile.display_name} ({size_mb:.0f} MB)?"):
-        path.unlink()
-        console.print(f"[green]Removed:[/green] {path}")
+    if path.is_dir():
+        # vLLM model directory — calculate total size
+        import shutil
+        size_mb = sum(f.stat().st_size for f in path.rglob("*") if f.is_file()) / (1024 * 1024)
+        if is_unrestricted(ctx) or click.confirm(f"Remove {profile.display_name} ({size_mb:.0f} MB)?"):
+            shutil.rmtree(path)
+            console.print(f"[green]Removed:[/green] {path}")
+    else:
+        size_mb = path.stat().st_size / (1024 * 1024)
+        if is_unrestricted(ctx) or click.confirm(f"Remove {profile.display_name} ({size_mb:.0f} MB)?"):
+            path.unlink()
+            console.print(f"[green]Removed:[/green] {path}")
 
 
 # ── Benchmark ─────────────────────────────────────────────────────────
@@ -694,15 +732,19 @@ def serve_start(ctx, model, engine, port):
     for w in plan.warnings:
         console.print(f"  [yellow]Warning: {w}[/yellow]")
 
-    # Start server
+    # Start server — auto-tune for low-VRAM GPUs when using vLLM
+    use_eager = plan.engine == "vllm" and sys_info.total_vram_mb < 6000
+    gpu_util = 0.80 if use_eager else config.security.max_gpu_memory_percent / 100.0
     server_config = ServerConfig(
         engine=plan.engine,
         model_path=str(target.local_path),
         host="127.0.0.1",
         port=port,
-        context_length=config.context_length,
+        context_length=min(config.context_length, 256) if use_eager else config.context_length,
         n_gpu_layers=config.n_gpu_layers,
         threads=config.threads,
+        gpu_memory_utilization=gpu_util,
+        enforce_eager=use_eager,
     )
     server = InferenceServer(server_config)
 

@@ -85,7 +85,7 @@ def test_router_classification():
 def test_model_registry_gemma4_profiles():
     from tqcli.core.model_registry import BUILTIN_PROFILES
     gemma_models = [p for p in BUILTIN_PROFILES if p.family == "gemma4"]
-    assert len(gemma_models) == 4  # E2B, E4B, 26B MoE, 31B Dense
+    assert len(gemma_models) >= 4  # E2B, E4B, 26B MoE, 31B Dense (+ vLLM profiles)
     # All Gemma 4 are multimodal
     for m in gemma_models:
         assert m.multimodal is True

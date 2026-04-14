@@ -42,10 +42,11 @@ class ServerConfig:
     context_length: int = 4096
     n_gpu_layers: int = -1
     threads: int = 0
-    gpu_memory_utilization: float = 0.85
+    gpu_memory_utilization: float = 0.80
     quantization: str | None = None
     kv_cache_dtype: str = "auto"
     tensor_parallel_size: int = 1
+    enforce_eager: bool = False
 
 
 @dataclass
@@ -225,7 +226,10 @@ class InferenceServer:
             "--port", str(self.config.port),
             "--max-model-len", str(self.config.context_length),
             "--gpu-memory-utilization", str(self.config.gpu_memory_utilization),
+            "--trust-remote-code",
         ]
+        if self.config.enforce_eager:
+            cmd.append("--enforce-eager")
         if self.config.quantization:
             cmd.extend(["--quantization", self.config.quantization])
         if self.config.kv_cache_dtype != "auto":
