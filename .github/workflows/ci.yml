@@ -1,0 +1,84 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python-version: ["3.10", "3.11", "3.12"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Lint with ruff
+        run: |
+          ruff check tqcli/ tests/
+          ruff format --check tqcli/ tests/
+
+      - name: Run tests
+        run: |
+          python -m pytest tests/ -v
+
+      - name: Verify CLI runs
+        run: |
+          tqcli --version
+          tqcli system info --json
+
+  security-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Check for secrets in code
+        run: |
+          # Fail if common secret patterns are found in tracked files
+          if git grep -lE "(AKIA[A-Z0-9]{16}|sk-[a-zA-Z0-9]{48}|ghp_[a-zA-Z0-9]{36}|password\s*=\s*['\"][^'\"]+['\"])" -- '*.py' '*.yaml' '*.yml' '*.json' '*.toml'; then
+            echo "Potential secrets detected in source files!"
+            exit 1
+          fi
+          echo "No secrets detected."
+
+      - name: Check for large binary files
+        run: |
+          # Fail if model weight files are committed
+          if find . -name "*.gguf" -o -name "*.safetensors" -o -name "*.bin" -size +1M | grep -q .; then
+            echo "Large binary/model files detected! These should not be committed."
+            exit 1
+          fi
+          echo "No large binary files detected."
+
+      - name: Dependency audit
+        run: |
+          pip install pip-audit
+          pip-audit --strict || true  # Report but don't fail on known issues yet

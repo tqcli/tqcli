@@ -1,0 +1,13 @@
+# CODEOWNERS — defines who must approve PRs to specific paths
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default: maintainer reviews everything
+* @ithllc
+
+# Critical paths — maintainer MUST approve (no exceptions)
+/tqcli/core/         @ithllc
+/tqcli/cli.py        @ithllc
+/tqcli/config.py     @ithllc
+/.github/            @ithllc
+/pyproject.toml      @ithllc
+/SECURITY.md         @ithllc
