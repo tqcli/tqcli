@@ -12,6 +12,8 @@
 ```
 Resume the vLLM TurboQuant35 end-to-end verification for GitHub issue ithllc/tqCLI#15. Session paused at 12:30 AM on April 15.
 
+Confirm if 2 shells are still running, if so, review the rest of the prompt, but you must wait until the 2 shells are finished to implement the tasks per the requests of this prompt.
+
 Check your memory file at /root/.claude/projects/-llm-models-python-code-src-tqCLI/memory/project_turboquant_kv_progress.md for full status.
 
 CONTEXT: tqCLI v0.5.0 is code-complete. The llama.cpp side is fully end-to-end verified

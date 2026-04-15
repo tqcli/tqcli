@@ -67,7 +67,7 @@ The `check_turboquant_compatibility()` function detects:
 | Engine | Fork | Status |
 |--------|------|--------|
 | llama.cpp | [ithllc/llama-cpp-turboquant](https://github.com/ithllc/llama-cpp-turboquant) | Built, tested (7.33 tok/s turbo3) |
-| vLLM | [ithllc/vllm-turboquant](https://github.com/ithllc/vllm-turboquant) | Forked, build instructions available |
+| vLLM | [ithllc/vllm-turboquant](https://github.com/ithllc/vllm-turboquant) | Built, E2E verified (turboquant35, 4.0x KV compression) |
 
 ### Building llama-cpp-turboquant
 

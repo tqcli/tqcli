@@ -8,7 +8,7 @@
 | # | GitHub | Title | Type | Severity | Status | Depends On |
 |---|--------|-------|------|----------|--------|------------|
 | 1 | #14 | Build llama-cpp-python against turboquant fork | Enhancement | Major | **CLOSED** | #13 |
-| 2 | #15 | Build vllm-turboquant from source for CUDA 12.8 | Enhancement | Major | **OPEN** (cmake passes, CUDA kernel compile WIP) | #13 |
+| 2 | #15 | Build vllm-turboquant from source for CUDA 12.8 | Enhancement | Major | **CLOSED** (built, E2E verified, turboquant35 4.0x KV compression) | #13 |
 | 3 | #16 | End-to-end TurboQuant KV inference tests | Testing | Major | **CLOSED** | #14, #15 |
 | 4 | #17 | Push CUDA 12.8 fixes to fork repos | Architecture | Moderate | **CLOSED** | #14, #15 |
 | 5 | #18 | TurboQuant KV tok/s benchmarks and comparison report | Testing | Moderate | **CLOSED** | #14, #15, #16 |

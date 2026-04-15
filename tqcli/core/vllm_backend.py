@@ -83,6 +83,19 @@ class VllmBackend(InferenceEngine):
             params["load_format"] = self._load_format
         if self._kv_cache_dtype != "auto":
             params["kv_cache_dtype"] = self._kv_cache_dtype
+            # TurboQuant fork requires enable_turboquant=True alongside kv_cache_dtype
+            try:
+                from vllm.v1.attention.ops.turboquant_kv_cache import (
+                    is_turboquant_kv_cache,
+                )
+
+                if is_turboquant_kv_cache(self._kv_cache_dtype):
+                    params["enable_turboquant"] = True
+            except ImportError:
+                pass
+
+        if kwargs.get("kv_cache_memory_bytes"):
+            params["kv_cache_memory_bytes"] = kwargs["kv_cache_memory_bytes"]
 
         self._llm = LLM(**params)
         self._model_name = model_path
