@@ -93,6 +93,37 @@ All pipeline logic tests pass — these verify the code path decisions, not actu
 
 ---
 
+## Thinking + Tool Calling Tests (8/8 PASS on 4 GB VRAM)
+
+Tests verify that TurboQuant KV compression does not corrupt reasoning chains or structured JSON output.
+
+### Thinking Mode (Test 5)
+
+| Sub-test | Model | Engine | KV | Result | Details |
+|----------|-------|--------|----|--------|---------|
+| 5a | Qwen3 4B Q4_K_M | llama.cpp | turbo3 | **PASS** | `<think>` coherent, `/no_think` empty block, 2.90 tok/s |
+| 5b | Qwen3 4B AWQ | vLLM | turboquant35 | **PASS** | `<think>` coherent, `/no_think` → answer 50, 1.81 tok/s |
+| 5c | Gemma 4 E2B Q4_K_M | llama.cpp | turbo3 | **PASS** | Step-by-step reasoning, 6.52-7.27 tok/s |
+
+### Tool/Function Calling (Test 6)
+
+| Sub-test | Model | Engine | KV | Result | Details |
+|----------|-------|--------|----|--------|---------|
+| 6a | Qwen3 4B Q4_K_M | llama.cpp | turbo3 | **PASS** | `<tool_call>` valid JSON `{get_weather, Tokyo}`, no-tool for math |
+| 6b | Qwen3 4B AWQ | vLLM | turboquant35 | **PASS** | JSON body valid `{get_weather, Paris}`, closing tag truncated at 128-ctx |
+| 6c | Gemma 4 E2B Q4_K_M | llama.cpp | turbo3 | **PASS** | JSON `{get_weather, Tokyo}`, direct "4" for math |
+
+### Combined Thinking + Tool Calling (Test 7)
+
+| Sub-test | Model | Engine | KV | Result | Details |
+|----------|-------|--------|----|--------|---------|
+| 7a | Qwen3 4B Q4_K_M | llama.cpp | turbo3 | **PASS** | `<think>` → `<tool_call>` get_weather(London), 3.17 tok/s |
+| 7c | Gemma 4 E2B Q4_K_M | llama.cpp | turbo3 | **PASS** | Reasoning → get_weather(London), 0.81 tok/s |
+
+**Skipped tests:** 5d, 6d, 7d (Gemma 4 vLLM — no GPTQ fits 4 GB); 7b (vLLM 128-token context too tight for combined chain).
+
+---
+
 ## End-to-End Verification Status
 
 | Engine | Build | E2E Inference | Benchmark |

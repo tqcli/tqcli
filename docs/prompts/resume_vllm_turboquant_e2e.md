@@ -144,7 +144,6 @@ Steps to execute (in order):
 7. **Review ALL issues (#13-#18) and document fixes**:
    Check each closed issue. For any fix that affects user-facing behavior,
    ensure it is documented in the appropriate docs/ file:
-   - `docs/guides/turboquant_kv_integration.md` — main integration guide
    - `docs/issues/issues_log_2026-04-14.md` — issues tracker
    - `tests/integration_reports/turboquant_kv_comparison_report.md` — benchmarks
    - `tests/integration_reports/turboquant_kv_test_cases.md` — test cases
@@ -214,7 +213,6 @@ Known pitfalls:
 | `tests/integration_reports/turboquant_kv_comparison_report.md` | Add vLLM benchmark section |
 | `tests/integration_reports/turboquant_kv_comparison_report.json` | Add vLLM benchmark data |
 | `docs/issues/issues_log_2026-04-14.md` | Update #15 to CLOSED |
-| `docs/guides/turboquant_kv_integration.md` | Update vLLM status from "build instructions" to "verified" |
 
 ## GitHub State
 

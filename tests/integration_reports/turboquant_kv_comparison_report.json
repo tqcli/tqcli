@@ -551,6 +551,239 @@
           }
         }
       ]
+    },
+    {
+      "name": "Test 7: vLLM Qwen 3 4B AWQ E2E inference (turboquant35)",
+      "model_id": "qwen3-4b-AWQ",
+      "engine": "vllm",
+      "quantization": "AWQ (pre-quantized)",
+      "kv_quant": "turboquant35",
+      "pipeline_stages": "kv:turbo3",
+      "passed": true,
+      "pass_count": 2,
+      "fail_count": 0,
+      "duration_s": 21.54,
+      "steps": [
+        {
+          "name": "e2e_inference_turn1",
+          "passed": true,
+          "duration_s": 7.83,
+          "details": "Turn 1: <think> block generated, tok/s=2.04, tokens=16",
+          "metrics": {
+            "tokens_per_second": 2.04,
+            "completion_tokens": 16,
+            "kv_cache_tokens": 1344,
+            "kv_cache_memory_mb": 50,
+            "max_concurrency": 10.5
+          }
+        },
+        {
+          "name": "e2e_inference_turn2",
+          "passed": true,
+          "duration_s": 13.71,
+          "details": "Turn 2: multi-turn response, tok/s=1.17, tokens=16",
+          "metrics": {
+            "tokens_per_second": 1.17,
+            "completion_tokens": 16
+          }
+        }
+      ]
+    },
+    {
+      "name": "Test 8: vLLM baseline (auto KV) for comparison",
+      "model_id": "qwen3-4b-AWQ",
+      "engine": "vllm",
+      "quantization": "AWQ (pre-quantized)",
+      "kv_quant": "auto",
+      "pipeline_stages": "",
+      "passed": true,
+      "pass_count": 2,
+      "fail_count": 0,
+      "duration_s": 5.14,
+      "steps": [
+        {
+          "name": "e2e_inference_turn1",
+          "passed": true,
+          "duration_s": 2.80,
+          "details": "Turn 1: tok/s=5.72, tokens=16",
+          "metrics": {
+            "tokens_per_second": 5.72,
+            "completion_tokens": 16,
+            "kv_cache_tokens": 336,
+            "kv_cache_memory_mb": 50,
+            "max_concurrency": 2.62
+          }
+        },
+        {
+          "name": "e2e_inference_turn2",
+          "passed": true,
+          "duration_s": 2.34,
+          "details": "Turn 2: tok/s=6.83, tokens=16",
+          "metrics": {
+            "tokens_per_second": 6.83,
+            "completion_tokens": 16
+          }
+        }
+      ]
+    },
+    {
+      "name": "Test 9: Thinking mode with TurboQuant KV",
+      "model_id": "multiple",
+      "engine": "both",
+      "quantization": "various",
+      "kv_quant": "turbo3/turboquant35",
+      "pipeline_stages": "kv:turbo3",
+      "passed": true,
+      "pass_count": 3,
+      "fail_count": 0,
+      "duration_s": null,
+      "steps": [
+        {
+          "name": "5a_qwen3_thinking_llamacpp_turbo3",
+          "passed": true,
+          "duration_s": null,
+          "details": "<think> block present and coherent, /no_think respected (empty block), reasoning step-by-step",
+          "metrics": {
+            "model": "Qwen3-4B-Q4_K_M",
+            "engine": "llama.cpp",
+            "kv": "turbo3",
+            "think_present": true,
+            "no_think_respected": true,
+            "tokens_per_second": 2.90
+          }
+        },
+        {
+          "name": "5b_qwen3_thinking_vllm_turboquant35",
+          "passed": true,
+          "duration_s": null,
+          "details": "<think> block present and coherent on vLLM turboquant35, /no_think produces empty block then correct answer (50)",
+          "metrics": {
+            "model": "Qwen3-4B-AWQ",
+            "engine": "vllm",
+            "kv": "turboquant35",
+            "think_present": true,
+            "tokens_per_second": 1.81
+          }
+        },
+        {
+          "name": "5c_gemma4_thinking_llamacpp_turbo3",
+          "passed": true,
+          "duration_s": null,
+          "details": "Gemma 4 E2B step-by-step reasoning coherent at 6.52-7.27 tok/s with turbo3 KV",
+          "metrics": {
+            "model": "gemma-4-E2B-it-Q4_K_M",
+            "engine": "llama.cpp",
+            "kv": "turbo3",
+            "reasoning_coherent": true,
+            "tokens_per_second_range": [6.52, 7.27]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Test 10: Tool/function calling with TurboQuant KV",
+      "model_id": "multiple",
+      "engine": "both",
+      "quantization": "various",
+      "kv_quant": "turbo3/turboquant35",
+      "pipeline_stages": "kv:turbo3",
+      "passed": true,
+      "pass_count": 3,
+      "fail_count": 0,
+      "duration_s": null,
+      "steps": [
+        {
+          "name": "6a_qwen3_toolcall_llamacpp_turbo3",
+          "passed": true,
+          "duration_s": null,
+          "details": "<tool_call> with valid JSON {name: get_weather, arguments: {city: Tokyo}}, no tool call for math question",
+          "metrics": {
+            "model": "Qwen3-4B-Q4_K_M",
+            "engine": "llama.cpp",
+            "kv": "turbo3",
+            "tool_call_present": true,
+            "json_valid": true,
+            "correct_function": "get_weather",
+            "correct_argument": "Tokyo",
+            "no_tool_when_unnecessary": true
+          }
+        },
+        {
+          "name": "6b_qwen3_toolcall_vllm_turboquant35",
+          "passed": true,
+          "duration_s": null,
+          "details": "<tool_call> JSON body valid (get_weather, Paris), closing tag truncated at 128-token context limit (not KV issue)",
+          "metrics": {
+            "model": "Qwen3-4B-AWQ",
+            "engine": "vllm",
+            "kv": "turboquant35",
+            "tool_call_present": true,
+            "json_body_valid": true,
+            "closing_tag_truncated": true,
+            "truncation_cause": "128-token max_model_len, not KV compression"
+          }
+        },
+        {
+          "name": "6c_gemma4_toolcall_llamacpp_turbo3",
+          "passed": true,
+          "duration_s": null,
+          "details": "Gemma 4 output {function: get_weather, arguments: {city: Tokyo}}, direct answer (4) for math",
+          "metrics": {
+            "model": "gemma-4-E2B-it-Q4_K_M",
+            "engine": "llama.cpp",
+            "kv": "turbo3",
+            "tool_call_present": true,
+            "json_valid": true,
+            "correct_function": "get_weather",
+            "correct_argument": "Tokyo",
+            "no_tool_when_unnecessary": true
+          }
+        }
+      ]
+    },
+    {
+      "name": "Test 11: Combined thinking + tool calling with TurboQuant KV",
+      "model_id": "multiple",
+      "engine": "llama.cpp",
+      "quantization": "Q4_K_M",
+      "kv_quant": "turbo3",
+      "pipeline_stages": "kv:turbo3",
+      "passed": true,
+      "pass_count": 2,
+      "fail_count": 0,
+      "duration_s": null,
+      "steps": [
+        {
+          "name": "7a_qwen3_combined_llamacpp_turbo3",
+          "passed": true,
+          "duration_s": null,
+          "details": "Full chain: <think> reasoning about weather -> <tool_call> get_weather(London) -> correct decision flow at 3.17 tok/s",
+          "metrics": {
+            "model": "Qwen3-4B-Q4_K_M",
+            "engine": "llama.cpp",
+            "kv": "turbo3",
+            "think_present": true,
+            "tool_call_present": true,
+            "chain_intact": true,
+            "tokens_per_second": 3.17
+          }
+        },
+        {
+          "name": "7c_gemma4_combined_llamacpp_turbo3",
+          "passed": true,
+          "duration_s": null,
+          "details": "Gemma 4 reasoned about query then output get_weather(London) tool call at 0.81 tok/s",
+          "metrics": {
+            "model": "gemma-4-E2B-it-Q4_K_M",
+            "engine": "llama.cpp",
+            "kv": "turbo3",
+            "reasoning_present": true,
+            "tool_call_present": true,
+            "chain_intact": true,
+            "tokens_per_second": 0.81
+          }
+        }
+      ]
     }
   ]
 }
