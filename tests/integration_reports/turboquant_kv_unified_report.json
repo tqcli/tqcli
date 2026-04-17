@@ -1,5 +1,5 @@
 {
-  "generated": "2026-04-15T20:12:18",
+  "generated": "2026-04-16T12:41:05",
   "report_type": "turboquant_kv_unified_integration",
   "tqcli_version": "0.5.0",
   "system": {
@@ -8,7 +8,7 @@
     "cpu_cores": 16,
     "cpu_physical": 8,
     "ram_total_mb": 31956,
-    "ram_available_mb": 12147,
+    "ram_available_mb": 24591,
     "gpu": "NVIDIA RTX A2000 Laptop GPU",
     "vram_mb": 4096,
     "recommended_engine": "llama.cpp",
@@ -18,7 +18,7 @@
   },
   "engines": {
     "llama_cpp": "0.3.20",
-    "vllm": "0.1.dev5+g896f08bf6"
+    "vllm": "0.1.dev6+gb236390bf"
   },
   "test_scope": "Tests 5-7: Thinking + Tool Calling + Combined with TurboQuant KV",
   "pipeline_validation": {
@@ -31,7 +31,7 @@
   },
   "vllm": {
     "engine": "vLLM (TurboQuant fork)",
-    "duration_s": 372.18,
+    "duration_s": 4891.25,
     "errors": [],
     "tests": [
       {
@@ -39,9 +39,9 @@
         "model_id": "qwen3-4b-AWQ",
         "model_family": "qwen3 + gemma4",
         "engine": "vLLM (TurboQuant fork)",
-        "started": "2026-04-15 20:06:05",
-        "finished": "2026-04-15 20:12:18",
-        "total_duration_s": 370.0947997570038,
+        "started": "2026-04-16 11:19:33",
+        "finished": "2026-04-16 12:16:50",
+        "total_duration_s": 3430.522625684738,
         "passed": false,
         "pass_count": 12,
         "fail_count": 1,
@@ -49,7 +49,7 @@
           {
             "name": "turboquant_compatibility",
             "passed": true,
-            "duration_s": 2.3603439331054688e-05,
+            "duration_s": 1.7404556274414062e-05,
             "details": "TurboQuant KV cache available (llama.cpp, vLLM)",
             "metrics": {
               "turboquant_available": true
@@ -58,7 +58,7 @@
           {
             "name": "download_model",
             "passed": true,
-            "duration_s": 6.246566772460938e-05,
+            "duration_s": 0.0061037540435791016,
             "details": "Already downloaded at /root/.tqcli/models/qwen3-4b-AWQ (2558 MB)",
             "metrics": {
               "size_mb": 2558.2,
@@ -69,7 +69,7 @@
           {
             "name": "quantization_pipeline",
             "passed": true,
-            "duration_s": 0.0005927085876464844,
+            "duration_s": 0.0010001659393310547,
             "details": "Pipeline: kv:turbo3 | Precision: weight_quantized | Weight quant needed: False | KV compression: turbo3",
             "metrics": {
               "model_precision": "weight_quantized",
@@ -87,7 +87,7 @@
           {
             "name": "verify_kv_only_pipeline",
             "passed": true,
-            "duration_s": 2.384185791015625e-07,
+            "duration_s": 7.152557373046875e-07,
             "details": "Weight quant needed: False (expected: False for pre-quantized) | KV compression: True (expected: True) | Model precision: weight_quantized",
             "metrics": {
               "kv_only": true,
@@ -98,10 +98,10 @@
           {
             "name": "load_model_turbo_kv",
             "passed": true,
-            "duration_s": 70.35994362831116,
+            "duration_s": 70.42882227897644,
             "details": "Loaded Qwen3 4B (AWQ INT4, vLLM) via vLLM with kv_cache_dtype=turboquant35 in 70.4s",
             "metrics": {
-              "load_time_s": 70.36,
+              "load_time_s": 70.43,
               "max_model_len": 984,
               "gpu_memory_utilization": 0.8,
               "kv_cache_dtype": "turboquant35",
@@ -116,51 +116,51 @@
           {
             "name": "qwen3_thinking_turn",
             "passed": true,
-            "duration_s": 61.05072832107544,
+            "duration_s": 72.72394108772278,
             "details": "Thinking: NO (0 chars) | Response: To calculate 15% of 240, I can follow the:\n\n15. First, convert the percentage to a decimal by dividing by 100: 15.5/100 = 0.15.\n2. Then, multiply the ...",
             "metrics": {
               "has_thinking_block": false,
               "thinking_length": 0,
               "response_length": 233,
               "thinking_format": "qwen3",
-              "tokens_per_second": 1.84,
+              "tokens_per_second": 1.54,
               "completion_tokens": 112
             }
           },
           {
             "name": "qwen3_no_think_turn",
             "passed": true,
-            "duration_s": 34.80297923088074,
+            "duration_s": 81.29479146003723,
             "details": "Thinking: 0 chars (expected minimal) | Response: </think>\n\n</think>\n\nTo find 10% of 5 5 500, I can multiply 500 by 0.1. \n\n10% of 500 is 50....",
             "metrics": {
               "has_thinking_block": false,
               "thinking_length": 0,
               "response_length": 90,
-              "tokens_per_second": 1.52,
+              "tokens_per_second": 0.65,
               "completion_tokens": 53
             }
           },
           {
             "name": "qwen3_reasoning_turn",
             "passed": true,
-            "duration_s": 67.56940293312073,
+            "duration_s": 178.70583200454712,
             "details": "Thinking: NO (0 chars) | Response: The ball costs 5 cents. \n\n**Explanation\n\nThe problem is a classic riddle. Here's the math:\n\nLet the ball cost **x**.  \nThe bat costs **x + 1**.  \n\nTot...",
             "metrics": {
               "has_thinking_block": false,
               "thinking_length": 0,
               "response_length": 251,
               "thinking_format": "qwen3",
-              "tokens_per_second": 1.64,
+              "tokens_per_second": 0.62,
               "completion_tokens": 111
             }
           },
           {
             "name": "download_model",
             "passed": true,
-            "duration_s": 0.0002071857452392578,
+            "duration_s": 0.0008280277252197266,
             "details": "Already downloaded at /root/.tqcli/models/gemma-4-e2b-it-vllm (9803 MB)",
             "metrics": {
-              "size_mb": 9802.7,
+              "size_mb": 9802.8,
               "path": "/root/.tqcli/models/gemma-4-e2b-it-vllm",
               "cached": true
             }
@@ -168,7 +168,7 @@
           {
             "name": "quantization_pipeline",
             "passed": true,
-            "duration_s": 0.00020933151245117188,
+            "duration_s": 0.0006279945373535156,
             "details": "Pipeline: kv:turbo3 | Precision: full_precision | Weight quant needed: False | KV compression: turbo3",
             "metrics": {
               "model_precision": "full_precision",
@@ -186,7 +186,7 @@
           {
             "name": "verify_full_pipeline",
             "passed": true,
-            "duration_s": 4.76837158203125e-07,
+            "duration_s": 9.5367431640625e-07,
             "details": "Weight quant needed: False | Weight method:  | KV compression: True | KV level: turbo3 | Precision: full_precision",
             "metrics": {
               "both_stages": false,
@@ -198,7 +198,7 @@
           {
             "name": "load_model_turbo_kv",
             "passed": false,
-            "duration_s": 136.3106496334076,
+            "duration_s": 3027.360659837723,
             "details": "Failed to load with TurboQuant KV: Engine core initialization failed. See root cause above. Failed core proc(s): {}",
             "metrics": {}
           },
@@ -210,15 +210,294 @@
             "metrics": {}
           }
         ]
+      },
+      {
+        "test_name": "Test 6: Tool Calling + turboquant35 KV (vLLM)",
+        "model_id": "qwen3-4b-AWQ",
+        "model_family": "qwen3 + gemma4",
+        "engine": "vLLM (TurboQuant fork)",
+        "started": "2026-04-16 12:16:50",
+        "finished": "2026-04-16 12:30:21",
+        "total_duration_s": 806.6706454753876,
+        "passed": false,
+        "pass_count": 10,
+        "fail_count": 1,
+        "steps": [
+          {
+            "name": "download_model",
+            "passed": true,
+            "duration_s": 0.0009613037109375,
+            "details": "Already downloaded at /root/.tqcli/models/qwen3-4b-AWQ (2558 MB)",
+            "metrics": {
+              "size_mb": 2558.2,
+              "path": "/root/.tqcli/models/qwen3-4b-AWQ",
+              "cached": true
+            }
+          },
+          {
+            "name": "quantization_pipeline",
+            "passed": true,
+            "duration_s": 0.011793136596679688,
+            "details": "Pipeline: kv:turbo3 | Precision: weight_quantized | Weight quant needed: False | KV compression: turbo3",
+            "metrics": {
+              "model_precision": "weight_quantized",
+              "needs_weight_quant": false,
+              "weight_quant_method": "",
+              "needs_kv_compression": true,
+              "kv_level": "turbo3",
+              "stages": [
+                "kv:turbo3"
+              ],
+              "summary": "kv:turbo3",
+              "kv_only_for_prequantized": true
+            }
+          },
+          {
+            "name": "verify_kv_only_pipeline",
+            "passed": true,
+            "duration_s": 3.814697265625e-06,
+            "details": "Weight quant needed: False (expected: False for pre-quantized) | KV compression: True (expected: True) | Model precision: weight_quantized",
+            "metrics": {
+              "kv_only": true,
+              "model_precision": "weight_quantized",
+              "kv_level": "turbo3"
+            }
+          },
+          {
+            "name": "load_model_turbo_kv",
+            "passed": true,
+            "duration_s": 151.61536955833435,
+            "details": "Loaded Qwen3 4B (AWQ INT4, vLLM) via vLLM with kv_cache_dtype=turboquant35 in 151.6s",
+            "metrics": {
+              "load_time_s": 151.62,
+              "max_model_len": 984,
+              "gpu_memory_utilization": 0.8,
+              "kv_cache_dtype": "turboquant35",
+              "quantization": "awq_marlin",
+              "enforce_eager": true,
+              "tuning_warnings": [
+                "enforce_eager=True (saves ~1 GB VRAM on small GPUs)",
+                "kv_cache_dtype=turboquant35 (TurboQuant turbo3: 4.6x KV compression)"
+              ]
+            }
+          },
+          {
+            "name": "qwen3_tool_call",
+            "passed": true,
+            "duration_s": 110.30589985847473,
+            "details": "Tool call: YES | JSON valid: NO | Response: <think>\nOkay, the user is asking for the weather in Paris. I need to use the get_weather function. The function requires thethe city parameter. The city user mentioned Paris, so I should call the func...",
+            "metrics": {
+              "has_tool_call": true,
+              "json_valid": false,
+              "response_length": 561,
+              "tokens_per_second": 1.12,
+              "completion_tokens": 124
+            }
+          },
+          {
+            "name": "qwen3_no_tool_turn",
+            "passed": true,
+            "duration_s": 63.927085161209106,
+            "details": "Direct answer: YES | Response: <think>\nOkay\nThe user is asking for the sum of 2 and 2. Since 2 is a simple, I can directly calculate the result. There is no need to call any functio...",
+            "metrics": {
+              "has_tool_call": false,
+              "answered_directly": true,
+              "tokens_per_second": 0.89,
+              "completion_tokens": 57
+            }
+          },
+          {
+            "name": "download_model",
+            "passed": true,
+            "duration_s": 0.0004534721374511719,
+            "details": "Already downloaded at /root/.tqcli/models/gemma-4-e2b-it-vllm (9803 MB)",
+            "metrics": {
+              "size_mb": 9802.8,
+              "path": "/root/.tqcli/models/gemma-4-e2b-it-vllm",
+              "cached": true
+            }
+          },
+          {
+            "name": "quantization_pipeline",
+            "passed": true,
+            "duration_s": 0.001371145248413086,
+            "details": "Pipeline: kv:turbo3 | Precision: full_precision | Weight quant needed: False | KV compression: turbo3",
+            "metrics": {
+              "model_precision": "full_precision",
+              "needs_weight_quant": false,
+              "weight_quant_method": "",
+              "needs_kv_compression": true,
+              "kv_level": "turbo3",
+              "stages": [
+                "kv:turbo3"
+              ],
+              "summary": "kv:turbo3",
+              "kv_only_for_prequantized": true
+            }
+          },
+          {
+            "name": "verify_full_pipeline",
+            "passed": true,
+            "duration_s": 1.9073486328125e-06,
+            "details": "Weight quant needed: False | Weight method:  | KV compression: True | KV level: turbo3 | Precision: full_precision",
+            "metrics": {
+              "both_stages": false,
+              "model_precision": "full_precision",
+              "weight_quant_method": "",
+              "kv_level": "turbo3"
+            }
+          },
+          {
+            "name": "load_model_turbo_kv",
+            "passed": false,
+            "duration_s": 480.80770611763,
+            "details": "Failed to load with TurboQuant KV: Engine core initialization failed. See root cause above. Failed core proc(s): {}",
+            "metrics": {}
+          },
+          {
+            "name": "gemma4_hw_limitation",
+            "passed": true,
+            "duration_s": 0.0,
+            "details": "Gemma 4 E2B may not fit 4096 MB VRAM.",
+            "metrics": {}
+          }
+        ]
+      },
+      {
+        "test_name": "Test 7: Combined Thinking + Tool Calling + turboquant35 KV (vLLM)",
+        "model_id": "qwen3-4b-AWQ",
+        "model_family": "qwen3 + gemma4",
+        "engine": "vLLM (TurboQuant fork)",
+        "started": "2026-04-16 12:30:21",
+        "finished": "2026-04-16 12:41:05",
+        "total_duration_s": 639.5380713939667,
+        "passed": false,
+        "pass_count": 8,
+        "fail_count": 1,
+        "steps": [
+          {
+            "name": "download_model",
+            "passed": true,
+            "duration_s": 0.000385284423828125,
+            "details": "Already downloaded at /root/.tqcli/models/qwen3-4b-AWQ (2558 MB)",
+            "metrics": {
+              "size_mb": 2558.2,
+              "path": "/root/.tqcli/models/qwen3-4b-AWQ",
+              "cached": true
+            }
+          },
+          {
+            "name": "quantization_pipeline",
+            "passed": true,
+            "duration_s": 0.0008232593536376953,
+            "details": "Pipeline: kv:turbo3 | Precision: weight_quantized | Weight quant needed: False | KV compression: turbo3",
+            "metrics": {
+              "model_precision": "weight_quantized",
+              "needs_weight_quant": false,
+              "weight_quant_method": "",
+              "needs_kv_compression": true,
+              "kv_level": "turbo3",
+              "stages": [
+                "kv:turbo3"
+              ],
+              "summary": "kv:turbo3",
+              "kv_only_for_prequantized": true
+            }
+          },
+          {
+            "name": "load_model_turbo_kv",
+            "passed": true,
+            "duration_s": 115.79687309265137,
+            "details": "Loaded Qwen3 4B (AWQ INT4, vLLM) via vLLM with kv_cache_dtype=turboquant35 in 115.8s",
+            "metrics": {
+              "load_time_s": 115.8,
+              "max_model_len": 984,
+              "gpu_memory_utilization": 0.8,
+              "kv_cache_dtype": "turboquant35",
+              "quantization": "awq_marlin",
+              "enforce_eager": true,
+              "tuning_warnings": [
+                "enforce_eager=True (saves ~1 GB VRAM on small GPUs)",
+                "kv_cache_dtype=turboquant35 (TurboQuant turbo3: 4.6x KV compression)"
+              ]
+            }
+          },
+          {
+            "name": "qwen3_combined_think",
+            "passed": true,
+            "duration_s": 169.14638423919678,
+            "details": "Thinking: YES (519 chars) | Response: <tool_call>\n{\"name\": \"get_weather\", \"arguments\": {\"city\":{\"city\":\"\":\":\n\n\n\n\n\n{\"name\": \"London\", \"arguments\": {\"{\"city\":\uff1a\"Londonon\"}}\n</tool_call>...",
+            "metrics": {
+              "has_thinking_block": true,
+              "thinking_length": 519,
+              "response_length": 144,
+              "thinking_format": "qwen3",
+              "tokens_per_second": 0.98,
+              "completion_tokens": 166
+            }
+          },
+          {
+            "name": "qwen3_combined_tool_awareness",
+            "passed": true,
+            "duration_s": 0.0,
+            "details": "Tool/weather referenced in response: YES",
+            "metrics": {
+              "has_tool_reference": true
+            }
+          },
+          {
+            "name": "download_model",
+            "passed": true,
+            "duration_s": 0.0005168914794921875,
+            "details": "Already downloaded at /root/.tqcli/models/gemma-4-e2b-it-vllm (9803 MB)",
+            "metrics": {
+              "size_mb": 9802.8,
+              "path": "/root/.tqcli/models/gemma-4-e2b-it-vllm",
+              "cached": true
+            }
+          },
+          {
+            "name": "quantization_pipeline",
+            "passed": true,
+            "duration_s": 0.0007932186126708984,
+            "details": "Pipeline: kv:turbo3 | Precision: full_precision | Weight quant needed: False | KV compression: turbo3",
+            "metrics": {
+              "model_precision": "full_precision",
+              "needs_weight_quant": false,
+              "weight_quant_method": "",
+              "needs_kv_compression": true,
+              "kv_level": "turbo3",
+              "stages": [
+                "kv:turbo3"
+              ],
+              "summary": "kv:turbo3",
+              "kv_only_for_prequantized": true
+            }
+          },
+          {
+            "name": "load_model_turbo_kv",
+            "passed": false,
+            "duration_s": 354.5922954082489,
+            "details": "Failed to load with TurboQuant KV: Engine core initialization failed. See root cause above. Failed core proc(s): {}",
+            "metrics": {}
+          },
+          {
+            "name": "gemma4_hw_limitation",
+            "passed": true,
+            "duration_s": 0.0,
+            "details": "Gemma 4 E2B may not fit 4096 MB VRAM.",
+            "metrics": {}
+          }
+        ]
       }
     ]
   },
   "summary": {
-    "total_tests": 1,
-    "total_steps": 13,
-    "steps_passed": 12,
-    "steps_failed": 1,
-    "pass_rate": 92.3,
+    "total_tests": 3,
+    "total_steps": 33,
+    "steps_passed": 30,
+    "steps_failed": 3,
+    "pass_rate": 90.9,
     "all_passed": false
   }
 }
