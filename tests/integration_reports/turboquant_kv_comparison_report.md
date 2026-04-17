@@ -1,135 +1,173 @@
 # TurboQuant KV Cache Compression — Integration Test Report
 
-**Generated:** 2026-04-14 19:45:00
+**Generated:** 2026-04-17 10:20:43
 **System:** NVIDIA RTX A2000 Laptop GPU (4096 MB VRAM)
 **CUDA:** driver 13.0, toolkit 12.8
 **OS:** Linux (Ubuntu 22.04.4 LTS) (WSL2)
-**tqCLI Version:** 0.5.0
 
 ---
 
-## End-to-End Benchmark: turbo3 vs f16 Baseline
-
-**Model:** Qwen3-4B Q4_K_M (2382 MB GGUF)
-**Engine:** llama.cpp (ithllc/llama-cpp-turboquant, CUDA 12.8, SM86)
-**GPU Layers:** 37/37 offloaded
-**Context:** n_ctx=512
-
-### Performance Results
-
-| KV Type | Turn 1 tok/s | Turn 2 tok/s | Turn 1 Time | Turn 2 Time |
-|---------|-------------|-------------|-------------|-------------|
-| f16 (baseline) | 6.41 | 7.36 | 5.00s | 4.35s |
-| **turbo3** | **7.33** | **7.41** | **4.37s** | **4.32s** |
-| Improvement | +14.4% | +0.7% | -12.6% | -0.7% |
-
-### Memory Breakdown (turbo3)
-
-| Component | VRAM Usage |
-|-----------|-----------|
-| Model weights | 2375 MB |
-| KV context (turbo3) | 112 MB |
-| Compute | 301 MB |
-| Free | 478 MB |
-| **Total** | **4095 MB** |
-
-### Key Findings
-
-1. **turbo3 is faster than f16 baseline** — 14.4% speedup on Turn 1 prompt evaluation, likely due to reduced KV cache memory pressure and more efficient attention computation with compressed keys/values.
-
-2. **KV cache compression verified** — 112 MB KV context with turbo3 vs estimated ~515 MB with q8_0/f16 baseline. That is a **4.6x compression ratio**, matching the TurboQuant paper's claims.
-
-3. **No quality degradation** — Both f16 and turbo3 produced identical response content for the same prompts. The Qwen3 thinking traces match exactly.
-
-4. **Context capacity increase** — With 478 MB free VRAM after turbo3 KV, the estimated achievable context with turbo3 is ~1700 tokens vs ~368 tokens with q8_0 baseline (4.6x increase).
-
----
-
-## Pipeline Logic Tests (6/6 PASS)
-
-All pipeline logic tests pass — these verify the code path decisions, not actual inference.
+## Summary
 
 | Test | Model | Engine | Weight Quant | KV Quant | Pipeline | Result |
 |------|-------|--------|-------------|----------|----------|--------|
 | Test 1: llama.cpp Gemma 4 E4B Q4_K_M + turbo3 KV | gemma-4-e4b-it-Q4_K_M | llama.cpp | Q4_K_M (pre-quantized) | turbo3 | kv:turbo3 | **PASS** (4/4) |
 | Test 2: llama.cpp Qwen 3 4B Q4_K_M + turbo3 KV | qwen3-4b-Q4_K_M | llama.cpp | Q4_K_M (pre-quantized) | turbo3 | kv:turbo3 | **PASS** (7/7) |
-| Test 3: vLLM Qwen 3 4B BF16 + bnb INT4 + turboquant35 KV | qwen3-4b-vllm | vllm | BF16 -> bnb INT4 | turboquant35 | kv:turbo3 | **PASS** (5/5) |
+| Test 3: vLLM Qwen 3 4B BF16 + bnb INT4 + turboquant35 KV | qwen3-4b-vllm | vllm | BF16 → bnb INT4 | turboquant35 | kv:turbo3 | **PASS** (5/5) |
 | Test 4: vLLM Qwen 3 4B AWQ + turboquant35 KV | qwen3-4b-AWQ | vllm | AWQ (pre-quantized) | turboquant35 | kv:turbo3 | **PASS** (5/5) |
 | Test 5: Baseline (no KV compression) | multiple | both | various | none | n/a | **PASS** (8/8) |
 | Test 6: CUDA compatibility + graceful degradation | n/a | both | n/a | auto | n/a | **PASS** (13/13) |
+| Gemma 4 E2B vLLM + CPU offload + TurboQuant KV | gemma-4-e2b-it-vllm | vllm | BF16 → bnb_int4 | turboquant35 | detect full_precision → weight:bnb_int4 → cpu_offload → kv:turboquant35 | **PASS** (15/15) |
 
 ---
 
-## End-to-End Benchmark: turboquant35 vs auto Baseline (vLLM)
+## Test 1: llama.cpp Gemma 4 E4B Q4_K_M + turbo3 KV
 
-**Model:** Qwen3-4B AWQ INT4 (2.5 GB safetensors)
-**Engine:** vLLM 0.1.dev5 (ithllc/vllm-turboquant, CUDA 12.8, SM86)
-**Attention:** Triton (turboquant35) vs FlashAttention v2 (auto)
-**Context:** max_model_len=128, kv_cache_memory=50 MB, enforce_eager=True
+- **Model:** gemma-4-e4b-it-Q4_K_M
+- **Engine:** llama.cpp
+- **Weight Quantization:** Q4_K_M (pre-quantized)
+- **KV Cache:** turbo3
+- **Pipeline Stages:** kv:turbo3
+- **Duration:** 0.58s
+- **Result:** PASS (4/4)
 
-### Performance Results
+| Step | Result | Details |
+|------|--------|---------|
+| detect_model_precision | PASS | Model gemma-4-e4b-it-Q4_K_M: precision=weight_quantized (quant=Q4_K_M, format=gguf) |
+| plan_quantization_pipeline | PASS | Pipeline: kv:turbo3 / Weight: Model already weight-quantized (Q4_K_M gguf) / KV: Applying turbo3 KV compression (4.6x, M |
+| verify_kv_params_llama | PASS | KV params for turbo3: {'cache_type_k': 'turbo3', 'cache_type_v': 'turbo3'} |
+| verify_kv_only_pipeline | PASS | Weight quant needed: False (expected: False for pre-quantized GGUF) |
 
-| KV Type | Turn 1 tok/s | Turn 2 tok/s | Turn 1 Time | Turn 2 Time |
-|---------|-------------|-------------|-------------|-------------|
-| auto/f16 (baseline) | 5.72 | 6.83 | 2.80s | 2.34s |
-| **turboquant35** | **2.04** | **1.17** | **7.83s** | **13.71s** |
+## Test 2: llama.cpp Qwen 3 4B Q4_K_M + turbo3 KV
 
-### KV Cache Capacity (same 50 MB allocation)
+- **Model:** qwen3-4b-Q4_K_M
+- **Engine:** llama.cpp
+- **Weight Quantization:** Q4_K_M (pre-quantized)
+- **KV Cache:** turbo3
+- **Pipeline Stages:** kv:turbo3
+- **Duration:** 1.04s
+- **Result:** PASS (7/7)
 
-| KV Type | KV Tokens | Max Concurrency | Compression |
-|---------|-----------|-----------------|-------------|
-| auto/f16 (baseline) | 336 | 2.62x | 1x |
-| **turboquant35** | **1,344** | **10.50x** | **4.0x** |
+| Step | Result | Details |
+|------|--------|---------|
+| detect_model_precision | PASS | Model qwen3-4b-Q4_K_M: precision=weight_quantized (quant=Q4_K_M, format=gguf) |
+| plan_quantization_pipeline | PASS | Pipeline: kv:turbo3 / Weight: Model already weight-quantized (Q4_K_M gguf) / KV: Applying turbo3 KV compression (4.6x, M |
+| verify_kv_params_llama | PASS | KV params for turbo3: {'cache_type_k': 'turbo3', 'cache_type_v': 'turbo3'} |
+| verify_kv_params_llama | PASS | KV params for turbo4: {'cache_type_k': 'turbo4', 'cache_type_v': 'turbo4'} |
+| verify_kv_params_llama | PASS | KV params for turbo3: {'cache_type_k': 'turbo3', 'cache_type_v': 'turbo3'} |
+| verify_kv_params_llama | PASS | KV params for turbo2: {'cache_type_k': 'turbo2', 'cache_type_v': 'turbo2'} |
+| verify_kv_only_pipeline | PASS | Weight quant needed: False (expected: False for pre-quantized GGUF) |
 
-### Key Findings (vLLM)
+## Test 3: vLLM Qwen 3 4B BF16 + bnb INT4 + turboquant35 KV
 
-1. **4.0x KV cache compression confirmed** — 1,344 tokens vs 336 in the same 50 MB budget, closely matching the TurboQuant paper's 4.6x claim for turboquant35.
+- **Model:** qwen3-4b-vllm
+- **Engine:** vllm
+- **Weight Quantization:** BF16 → bnb INT4
+- **KV Cache:** turboquant35
+- **Pipeline Stages:** kv:turbo3
+- **Duration:** 0.94s
+- **Result:** PASS (5/5)
 
-2. **Throughput tradeoff** — turboquant35 tok/s is lower (2.04 vs 5.72) because the Triton attention backend (required for quantize/dequantize) is slower than FlashAttention v2 on this hardware. This is expected for first-run Triton JIT warmup on a 4 GB VRAM laptop GPU. On production GPUs (A100, H100) with warmed Triton caches, the gap narrows significantly.
+| Step | Result | Details |
+|------|--------|---------|
+| detect_model_precision | PASS | Model qwen3-4b-vllm: precision=full_precision (quant=BF16, format=safetensors) |
+| verify_full_precision | PASS | Precision: full_precision (expected: full_precision) |
+| plan_quantization_pipeline | PASS | Pipeline: kv:turbo3 / Weight: Model is BF16 — too large for 4096 MB VRAM even with INT4 quantization (may need smaller m |
+| verify_kv_params_vllm | PASS | KV params for turbo3: {'kv_cache_dtype': 'turboquant35', 'enable_turboquant': True, 'attention_backend': 'TRITON_ATTN'} |
+| verify_dual_pipeline | PASS | Pipeline stages: ['kv:turbo3']. Weight quant: False (). KV: True (turbo3) |
 
-3. **Context capacity is the win** — On 4 GB VRAM, the auto baseline can only serve 336 tokens of KV context. With turboquant35, the same memory holds 1,344 tokens — enabling 4x longer conversations or 4x more concurrent requests.
+## Test 4: vLLM Qwen 3 4B AWQ + turboquant35 KV
 
-4. **Hardware limitation** — RTX A2000 (4 GB VRAM) barely fits Qwen3-4B AWQ (2.5 GB) + vLLM overhead. Only 50 MB was available for KV cache. On 8+ GB GPUs, both throughput and context capacity will improve dramatically.
+- **Model:** qwen3-4b-AWQ
+- **Engine:** vllm
+- **Weight Quantization:** AWQ (pre-quantized)
+- **KV Cache:** turboquant35
+- **Pipeline Stages:** kv:turbo3
+- **Duration:** 0.66s
+- **Result:** PASS (5/5)
 
----
+| Step | Result | Details |
+|------|--------|---------|
+| detect_model_precision | PASS | Model qwen3-4b-AWQ: precision=weight_quantized (quant=AWQ, format=awq) |
+| verify_weight_quantized | PASS | Precision: weight_quantized (expected: weight_quantized) |
+| plan_quantization_pipeline | PASS | Pipeline: kv:turbo3 / Weight: Model already weight-quantized (AWQ awq) / KV: Applying turbo3 KV compression (4.6x, Minim |
+| verify_kv_only_pipeline | PASS | Weight quant needed: False (expected: False for AWQ) |
+| verify_kv_params_vllm | PASS | KV params for turbo3: {'kv_cache_dtype': 'turboquant35', 'enable_turboquant': True, 'attention_backend': 'TRITON_ATTN'} |
 
-## Thinking + Tool Calling Tests (8/8 PASS on 4 GB VRAM)
+## Test 5: Baseline (no KV compression)
 
-Tests verify that TurboQuant KV compression does not corrupt reasoning chains or structured JSON output.
+- **Model:** multiple
+- **Engine:** both
+- **Weight Quantization:** various
+- **KV Cache:** none
+- **Pipeline Stages:** none
+- **Duration:** 1.08s
+- **Result:** PASS (8/8)
 
-### Thinking Mode (Test 5)
+| Step | Result | Details |
+|------|--------|---------|
+| plan_quantization_pipeline | PASS | Pipeline: No quantization applied / Weight: Model already weight-quantized (Q4_K_M gguf) / KV: KV compression disabled b |
+| verify_no_kv_qwen3-4b-Q4_K_M | PASS | KV level: none (expected: none for --kv-quant none) |
+| plan_quantization_pipeline | PASS | Pipeline: No quantization applied / Weight: Model already weight-quantized (AWQ awq) / KV: KV compression disabled by us |
+| verify_no_kv_qwen3-4b-AWQ | PASS | KV level: none (expected: none for --kv-quant none) |
+| plan_quantization_pipeline | PASS | Pipeline: No quantization applied / Weight: Model is BF16 — too large for 4096 MB VRAM even with INT4 quantization (may  |
+| verify_no_kv_qwen3-4b-vllm | PASS | KV level: none (expected: none for --kv-quant none) |
+| verify_kv_params_llama | PASS | KV params for none: {'cache_type_k': 'f16', 'cache_type_v': 'f16'} |
+| verify_kv_params_vllm | PASS | KV params for none: {} |
 
-| Sub-test | Model | Engine | KV | Result | Details |
-|----------|-------|--------|----|--------|---------|
-| 5a | Qwen3 4B Q4_K_M | llama.cpp | turbo3 | **PASS** | `<think>` coherent, `/no_think` empty block, 2.90 tok/s |
-| 5b | Qwen3 4B AWQ | vLLM | turboquant35 | **PASS** | `<think>` coherent, `/no_think` → answer 50, 1.81 tok/s |
-| 5c | Gemma 4 E2B Q4_K_M | llama.cpp | turbo3 | **PASS** | Step-by-step reasoning, 6.52-7.27 tok/s |
+## Test 6: CUDA compatibility + graceful degradation
 
-### Tool/Function Calling (Test 6)
+- **Model:** n/a
+- **Engine:** both
+- **Weight Quantization:** n/a
+- **KV Cache:** auto
+- **Pipeline Stages:** none
+- **Duration:** 0.69s
+- **Result:** PASS (13/13)
 
-| Sub-test | Model | Engine | KV | Result | Details |
-|----------|-------|--------|----|--------|---------|
-| 6a | Qwen3 4B Q4_K_M | llama.cpp | turbo3 | **PASS** | `<tool_call>` valid JSON `{get_weather, Tokyo}`, no-tool for math |
-| 6b | Qwen3 4B AWQ | vLLM | turboquant35 | **PASS** | JSON body valid `{get_weather, Paris}`, closing tag truncated at 128-ctx |
-| 6c | Gemma 4 E2B Q4_K_M | llama.cpp | turbo3 | **PASS** | JSON `{get_weather, Tokyo}`, direct "4" for math |
+| Step | Result | Details |
+|------|--------|---------|
+| check_cuda_compatibility | PASS | TurboQuant available=True, toolkit=12.8, driver=13.0: TurboQuant KV cache available (llama.cpp, vLLM) |
+| parse_cuda_12.8 | PASS | parse_cuda_version('12.8') = (12, 8) (expected (12, 8)) |
+| parse_cuda_11.5 | PASS | parse_cuda_version('11.5') = (11, 5) (expected (11, 5)) |
+| parse_cuda_13.0 | PASS | parse_cuda_version('13.0') = (13, 0) (expected (13, 0)) |
+| parse_cuda_empty | PASS | parse_cuda_version('') = (0, 0) (expected (0, 0)) |
+| parse_cuda_invalid | PASS | parse_cuda_version('invalid') = (0, 0) (expected (0, 0)) |
+| verify_compatibility_matches_cuda | PASS | CUDA 12.8: available=True (expected=True) |
+| plan_quantization_pipeline | PASS | Pipeline: kv:turbo3 / Weight: Model already weight-quantized (Q4_K_M gguf) / KV: Applying turbo3 KV compression (4.6x, M |
+| verify_turbo3_when_available | PASS | KV level: turbo3 (expected: turbo3 since TurboQuant is available) |
+| verify_ratio_none | PASS | none: 1.0x compression, Baseline |
+| verify_ratio_turbo4 | PASS | turbo4: 3.8x compression, Near-lossless (+0.23% PPL) |
+| verify_ratio_turbo3 | PASS | turbo3: 4.6x compression, Minimal loss (+1.06% PPL) |
+| verify_ratio_turbo2 | PASS | turbo2: 6.4x compression, Noticeable loss (+6.48% PPL) |
 
-### Combined Thinking + Tool Calling (Test 7)
+## Gemma 4 E2B vLLM + CPU offload + TurboQuant KV
 
-| Sub-test | Model | Engine | KV | Result | Details |
-|----------|-------|--------|----|--------|---------|
-| 7a | Qwen3 4B Q4_K_M | llama.cpp | turbo3 | **PASS** | `<think>` → `<tool_call>` get_weather(London), 3.17 tok/s |
-| 7c | Gemma 4 E2B Q4_K_M | llama.cpp | turbo3 | **PASS** | Reasoning → get_weather(London), 0.81 tok/s |
+- **Model:** gemma-4-e2b-it-vllm
+- **Engine:** vllm
+- **Weight Quantization:** BF16 → bnb_int4
+- **KV Cache:** turboquant35
+- **Pipeline Stages:** detect full_precision → weight:bnb_int4 → cpu_offload → kv:turboquant35
+- **Duration:** 681.63s
+- **Result:** PASS (15/15)
 
-**Skipped tests:** 5d, 6d, 7d (Gemma 4 vLLM — no GPTQ fits 4 GB); 7b (vLLM 128-token context too tight for combined chain).
-
----
-
-## End-to-End Verification Status
-
-| Engine | Build | E2E Inference | Benchmark |
-|--------|-------|--------------|-----------|
-| llama.cpp (turbo3) | PASS (CUDA 12.8 SM86) | PASS (6.48-7.41 tok/s) | PASS (14.4% speedup) |
-| vLLM (turboquant35) | PASS (CUDA 12.8 SM86) | PASS (1.02-2.04 tok/s) | PASS (4.0x KV compression) |
+| Step | Result | Details |
+|------|--------|---------|
+| find_model_profile | PASS | Found gemma-4-e2b-it-vllm: Gemma 4 E2B Edge Instruct (vLLM BF16) (2.3B, BF16) |
+| detect_precision | PASS | Detected: full_precision (quant=BF16, format=safetensors) |
+| size_estimates | PASS | BF16=11710 MB, INT4=4145 MB, VRAM=4096 MB, RAM=17201 MB |
+| select_quantization_without_offload | PASS | select_quantization() returned: None (expected None — too large for VRAM alone) |
+| build_vllm_config_with_offload | PASS | feasible=True / cpu_offload_gb=9.9 / quantization=bitsandbytes / kv_cache_dtype=turboquant35 / max_model_len=2048 |
+| model_available | PASS | Model already downloaded at /root/.tqcli/models/gemma-4-e2b-it-vllm |
+| load_model_with_cpu_offload | PASS | Loaded Gemma 4 E2B via vLLM in 557.1s / BNB_INT4 + cpu_offload=9.9 GB + kv=turboquant35 |
+| chat_thinking_turn | PASS | Response: * **15% of 240 is 36.**... |
+| chat_simple_turn | PASS | Response: — Paris... |
+| unload_model | PASS | Model unloaded |
+| cli_--version | PASS | cmd: tqcli --version / rc=0 |
+| cli_system_info_--json | PASS | cmd: tqcli system info --json / rc=0 / keys=['os', 'os_display', 'arch', 'is_wsl', 'cpu_cores'] |
+| cli_model_list | PASS | cmd: tqcli model list / rc=0 |
+| cli_chat_--help | PASS | cmd: tqcli chat --help / rc=0 |
+| workflow_items_not_performed | PASS | Model pull, KV-compressed chat, image/audio input, skill creation, multi-process server, model removal, and clean uninst |
 
 ---
 
@@ -137,21 +175,7 @@ Tests verify that TurboQuant KV compression does not corrupt reasoning chains or
 
 | Level | Bits/Value | Compression | Quality Impact |
 |-------|-----------|-------------|---------------|
-| none (f16) | 16.0 | 1x (no compression) | Baseline |
-| q8_0 | 8.5 | 1.9x | Near-baseline |
+| none | 8.5 | 1x (no compression) | Baseline |
 | turbo4 | 4.25 | 3.8x | Near-lossless (+0.23% PPL) |
 | turbo3 | 3.5 | 4.6x | Minimal loss (+1.06% PPL) |
 | turbo2 | 2.5 | 6.4x | Noticeable loss (+6.48% PPL) |
-
----
-
-## Side-by-Side Comparison with Previous Tests
-
-| Metric | v0.4.0 q8_0 baseline | v0.5.0 turbo3 | Improvement |
-|--------|---------------------|---------------|-------------|
-| Qwen3-4B tok/s (Turn 1) | 3.12 | 7.33 | +135% |
-| Qwen3-4B tok/s (Turn 2) | 3.04 | 7.41 | +144% |
-| KV cache memory | ~515 MB est. | 112 MB | 4.6x less |
-| Est. context tokens | ~368 | ~1700 | 4.6x more |
-
-Note: The v0.4.0 baseline was measured with stock llama-cpp-python (CPU KV path). The v0.5.0 turbo3 numbers use the CUDA-accelerated TurboQuant fork, which also benefits from CUDA 12.8 optimizations beyond just KV compression.

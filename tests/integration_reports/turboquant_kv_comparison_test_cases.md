@@ -5,8 +5,9 @@
 **Scope:** llama.cpp (turbo3/turbo4/turbo2) + vLLM (turboquant35) + CPU-offload path
 **GitHub Issues:** [ithllc/tqCLI#13](https://github.com/ithllc/tqCLI/issues/13), [#20](https://github.com/ithllc/tqCLI/issues/20), [#22](https://github.com/ithllc/tqCLI/issues/22)
 **Driving test scripts:**
-- `tests/test_integration_turboquant_kv.py` — pipeline logic + llama.cpp + vLLM KV tests
-- `tests/test_gemma4_vllm_cpu_offload.py` — Gemma 4 E2B on vLLM with BNB_INT4 + CPU offload + turboquant35
+- `tests/test_integration_turboquant_kv.py` — pipeline logic + llama.cpp + vLLM KV tests, now including Gemma 4 E2B vLLM CPU-offload coverage
+- `tests/test_gemma4_vllm_cpu_offload.py` — original Gemma 4 E2B on vLLM with BNB_INT4 + CPU offload + turboquant35
+- `tests/test_integration_gemma4_vllm_cpu_offload.py` — copied integration helper for the TurboQuant KV comparison report
 
 **Prerequisites:**
 - llama-cpp-python built against `ithllc/llama-cpp-turboquant` fork (CUDA 12.8+)
@@ -164,7 +165,7 @@ Driver: `tests/test_integration_turboquant_kv.py` + `tests/test_gemma4_vllm_cpu_
 
 ### C.2 Gemma 4 E2B vLLM + BNB_INT4 + CPU offload + turboquant35
 
-Driver: `tests/test_gemma4_vllm_cpu_offload.py` (10-step test)
+Driver: `tests/test_integration_gemma4_vllm_cpu_offload.py` (10-step integration helper, copied from `tests/test_gemma4_vllm_cpu_offload.py`)
 
 **Pipeline:** `detect full_precision → weight:bnb_int4 → cpu_offload → kv:turboquant35`
 

@@ -37,6 +37,7 @@ from tqcli.core.kv_quantizer import (
 )
 from tqcli.core.model_registry import BUILTIN_PROFILES, ModelRegistry
 from tqcli.core.system_info import detect_system
+from tests.test_integration_gemma4_vllm_cpu_offload import run_gemma4_vllm_cpu_offload_test
 
 REPORT_DIR = Path(__file__).parent / "integration_reports"
 
@@ -635,6 +636,11 @@ def test_6_cuda_compatibility() -> TestResult:
     return result
 
 
+def test_7_gemma4_e2b_vllm_cpu_offload() -> TestResult:
+    """Test 7: Gemma 4 E2B on vLLM with BNB_INT4 + CPU offload + turboquant35."""
+    return run_gemma4_vllm_cpu_offload_test()
+
+
 # ─── Report generation ────────────────────────────────────────────────
 
 
@@ -757,6 +763,7 @@ def main():
         test_4_vllm_qwen3_awq_turbo,
         test_5_baseline_no_compression,
         test_6_cuda_compatibility,
+        test_7_gemma4_e2b_vllm_cpu_offload,
     ]
 
     results = []
