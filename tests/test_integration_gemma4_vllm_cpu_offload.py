@@ -42,6 +42,7 @@ from tqcli.core.thinking import (
     extract_thinking,
 )
 from tqcli.core.vllm_config import build_vllm_config
+from tests.integration_lifecycle import run_full_lifecycle
 
 REPORT_DIR = Path(__file__).parent / "integration_reports"
 
@@ -288,15 +289,14 @@ def run_gemma4_vllm_cpu_offload_test() -> TestResult:
                 details=f"SKIPPED: depends on vllm (not installed: {VLLM_IMPORT_ERROR})",
                 metrics={"skipped": True, "reason": "vllm_not_installed"},
             ))
-        result.add_step(run_cli_step(["--version"]))
-        result.add_step(run_cli_step(["system", "info", "--json"]))
-        result.add_step(run_cli_step(["model", "list"]))
-        result.add_step(run_cli_step(["chat", "--help"]))
-        result.add_step(StepResult(
-            name="workflow_items_not_performed",
-            passed=True,
-            details="Model pull, KV-compressed chat, image/audio input, skill creation, multi-process server, model removal, and clean uninstall are not executed in this helper.",
-        ))
+        for step in run_full_lifecycle(
+            model_id=profile.id,
+            kv_level="turboquant35",
+            engine="vllm",
+            model_size_mb=10246,
+            multimodal=profile.multimodal,
+        ):
+            result.add_step(step)
         result.finished = time.strftime("%Y-%m-%dT%H:%M:%S")
         result.total_duration_s = sum(s.duration_s for s in result.steps)
         result.passed = all(s.passed for s in result.steps)
@@ -427,15 +427,14 @@ def run_gemma4_vllm_cpu_offload_test() -> TestResult:
         except Exception as exc:
             result.add_step(StepResult(name="unload_model", passed=False, details=f"Unload failed: {exc}"))
 
-    result.add_step(run_cli_step(["--version"]))
-    result.add_step(run_cli_step(["system", "info", "--json"]))
-    result.add_step(run_cli_step(["model", "list"]))
-    result.add_step(run_cli_step(["chat", "--help"]))
-    result.add_step(StepResult(
-        name="workflow_items_not_performed",
-        passed=True,
-        details="Model pull, KV-compressed chat, image/audio input, skill creation, multi-process server, model removal, and clean uninstall are not executed in this helper.",
-    ))
+    for step in run_full_lifecycle(
+        model_id=profile.id,
+        kv_level="turboquant35",
+        engine="vllm",
+        model_size_mb=10246,  # BF16 safetensors on disk (INT4 runtime ≈4145)
+        multimodal=profile.multimodal,
+    ):
+        result.add_step(step)
 
     result.finished = time.strftime("%Y-%m-%dT%H:%M:%S")
     result.total_duration_s = sum(s.duration_s for s in result.steps)

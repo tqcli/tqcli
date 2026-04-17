@@ -38,6 +38,17 @@ from tqcli.core.kv_quantizer import (
 from tqcli.core.model_registry import BUILTIN_PROFILES, ModelRegistry
 from tqcli.core.system_info import detect_system
 from tests.test_integration_gemma4_vllm_cpu_offload import run_gemma4_vllm_cpu_offload_test
+from tests.integration_lifecycle import run_full_lifecycle
+
+# Model size reference (MB on disk) — mirrors the test_cases document so the
+# Section E multi-process assessment gets realistic numbers.
+_MODEL_SIZE_MB = {
+    "gemma-4-e4b-it-Q4_K_M": 4981,
+    "qwen3-4b-Q4_K_M": 2382,
+    "qwen3-4b-vllm": 8620,        # BF16 safetensors on disk
+    "qwen3-4b-AWQ": 2558,
+    "gemma-4-e2b-it-vllm": 10246,  # BF16 safetensors on disk (INT4 runtime ≈4145)
+}
 
 REPORT_DIR = Path(__file__).parent / "integration_reports"
 
@@ -342,6 +353,18 @@ def test_1_llama_gemma4_e4b_turbo3() -> TestResult:
         details=f"Weight quant needed: {needs_weight} (expected: False for pre-quantized GGUF)",
     ))
 
+    # Section E full-lifecycle steps (install verify, model list, chat flag,
+    # image/audio skip, skill create/list/run/cleanup, multi-process assess,
+    # server help, model-remove help, pip-show).
+    for step in run_full_lifecycle(
+        model_id=model.id,
+        kv_level="turbo3",
+        engine="llama.cpp",
+        model_size_mb=_MODEL_SIZE_MB.get(model.id, 4000),
+        multimodal=model.multimodal,
+    ):
+        result.add_step(step)
+
     result.finished = datetime.now().isoformat()
     result.total_duration_s = sum(s.duration_s for s in result.steps)
     result.passed = all(s.passed for s in result.steps)
@@ -388,6 +411,16 @@ def test_2_llama_qwen3_4b_turbo3() -> TestResult:
         passed=not needs_weight,
         details=f"Weight quant needed: {needs_weight} (expected: False for pre-quantized GGUF)",
     ))
+
+    # Section E full-lifecycle steps.
+    for step in run_full_lifecycle(
+        model_id=model.id,
+        kv_level="turbo3",
+        engine="llama.cpp",
+        model_size_mb=_MODEL_SIZE_MB.get(model.id, 4000),
+        multimodal=model.multimodal,
+    ):
+        result.add_step(step)
 
     result.finished = datetime.now().isoformat()
     result.total_duration_s = sum(s.duration_s for s in result.steps)
@@ -444,6 +477,16 @@ def test_3_vllm_qwen3_bf16_bnb_turbo() -> TestResult:
                 f"({pipeline_step.metrics.get('kv_level', 'n/a')})",
     ))
 
+    # Section E full-lifecycle steps.
+    for step in run_full_lifecycle(
+        model_id=model.id,
+        kv_level="turbo3",
+        engine="vllm",
+        model_size_mb=_MODEL_SIZE_MB.get(model.id, 4000),
+        multimodal=model.multimodal,
+    ):
+        result.add_step(step)
+
     result.finished = datetime.now().isoformat()
     result.total_duration_s = sum(s.duration_s for s in result.steps)
     result.passed = all(s.passed for s in result.steps)
@@ -493,6 +536,16 @@ def test_4_vllm_qwen3_awq_turbo() -> TestResult:
 
     # Step 4: Verify vLLM KV params
     result.add_step(step_verify_kv_params_vllm(KVQuantLevel.TURBO3))
+
+    # Section E full-lifecycle steps.
+    for step in run_full_lifecycle(
+        model_id=model.id,
+        kv_level="turbo3",
+        engine="vllm",
+        model_size_mb=_MODEL_SIZE_MB.get(model.id, 4000),
+        multimodal=model.multimodal,
+    ):
+        result.add_step(step)
 
     result.finished = datetime.now().isoformat()
     result.total_duration_s = sum(s.duration_s for s in result.steps)
