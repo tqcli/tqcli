@@ -5,6 +5,43 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] - 2026-04-18
+
+### Added
+
+- **Tri-state agentic autonomy** for `tqcli chat` (closes #25 once filed).
+  Introduces a middleware layer (`tqcli/core/agent_orchestrator.py`) that
+  intercepts streamed LLM output and routes tool calls through one of three
+  modes:
+  - **manual** (default) — no tool schemas injected; unchanged behavior.
+    `tools` list passed to the LLM is explicitly empty, so existing CI and
+    JSON-stdout pipelines stay bit-for-bit identical.
+  - **ai_tinkering** (`--ai-tinkering`) — model emits
+    `<staged_tool_call>{...}</staged_tool_call>`; the CLI halts, shows name +
+    JSON args, and asks `[Y/n/Edit]`. Approved tools run, observations are
+    threaded back as a new user turn, and the loop continues so the model can
+    chain follow-up calls without a fresh prompt. Safe-marked tools auto-run.
+  - **unrestricted** (`--stop-trying-to-control-everything-and-just-let-go`)
+    — model emits `<tool_call>{...}</tool_call>` and the ReAct loop fires
+    tools immediately, bounded by `--max-agent-steps` (default 10).
+- **Core agent tools** (`tqcli/core/agent_tools.py`): `tq-file-read`,
+  `tq-file-write`, `tq-terminal-exec`, `tq-interactive-prompt`. Each tool
+  emits an OpenAI-compatible JSON Schema and carries a `safety` classifier
+  (`safe` / `actionable`) that drives the tinkering confirmation gate.
+- **Agent tests** (`tests/test_agent_orchestrator.py`): Phase 4 rubrics plus
+  regressions for nested-JSON argument parsing, multi-step tinkering chains,
+  denial behavior, and `max_steps` bounds.
+
+### Changed
+
+- `InteractiveSession` accepts `agent_mode` and `max_agent_steps` so the chat
+  loop short-circuits to the orchestrator in agentic modes. Manual mode path
+  is untouched.
+- `FileReadTool.safety` is classified `actionable` (not `safe`) in tinkering
+  mode so the CLI gates reads of secrets like `~/.ssh`, `.env`, or
+  `/etc/shadow`. Under `--stop-trying-to-control-everything-and-just-let-go`
+  the user has explicitly opted in and the gate is bypassed.
+
 ## [0.5.0] - 2026-04-17
 
 ### Added

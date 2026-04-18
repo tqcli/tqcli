@@ -66,6 +66,10 @@ def main(ctx, unrestricted):
 @click.option("--server-url", default=None, help="Connect to a running inference server (multi-process mode)")
 @click.option("--kv-quant", type=click.Choice(["auto", "none", "turbo4", "turbo3", "turbo2"]),
               default="auto", help="TurboQuant KV cache compression level")
+@click.option("--ai-tinkering", "ai_tinkering", is_flag=True, default=False,
+              help="Shared Determinism: stage tool calls and require [Y/n/Edit] approval.")
+@click.option("--max-agent-steps", type=int, default=10,
+              help="Max ReAct loop iterations in unrestricted mode (default 10).")
 @click.option("--prompt", "-p", default=None, help="Single-shot prompt for headless mode")
 @click.option("--image", "-i", multiple=True, help="Repeatable image path for multimodal input")
 @click.option("--audio", "-a", multiple=True, help="Repeatable audio path for multimodal input")
@@ -73,7 +77,7 @@ def main(ctx, unrestricted):
 @click.option("--json", "as_json", is_flag=True, help="Emit JSON to stdout, route non-JSON chatter to stderr")
 @click.option("--max-tokens", type=int, default=1024, help="Maximum tokens to generate")
 @click.pass_context
-def chat(ctx, model, engine, context_length, server_url, kv_quant, prompt, image, audio, messages, as_json, max_tokens):
+def chat(ctx, model, engine, context_length, server_url, kv_quant, ai_tinkering, max_agent_steps, prompt, image, audio, messages, as_json, max_tokens):
     """Start an interactive or headless chat session.
 
     Interactive (default): start a terminal chat UI.
@@ -93,6 +97,23 @@ def chat(ctx, model, engine, context_length, server_url, kv_quant, prompt, image
     from tqcli.ui.interactive import InteractiveSession
 
     unrestricted = is_unrestricted(ctx)
+    # Tri-state autonomy: unrestricted > ai_tinkering > manual.
+    if unrestricted:
+        agent_mode = "unrestricted"
+    elif ai_tinkering:
+        agent_mode = "ai_tinkering"
+    else:
+        agent_mode = "manual"
+    # --ai-tinkering blocks on a TTY confirmation prompt; it cannot coexist
+    # with --json (which is explicitly for automated/headless pipelines).
+    # Fail fast instead of silently hanging.
+    if as_json and agent_mode == "ai_tinkering":
+        raise click.UsageError(
+            "--ai-tinkering requires an interactive TTY for [Y/n/Edit] "
+            "confirmation and cannot be combined with --json. Use "
+            "--stop-trying-to-control-everything-and-just-let-go for "
+            "autonomous headless runs."
+        )
     if as_json:
         # Route non-JSON chatter to stderr
         from tqcli.ui.console import setup_json_logging
@@ -134,7 +155,10 @@ def chat(ctx, model, engine, context_length, server_url, kv_quant, prompt, image
             console.print(f"\n[red]{e}[/red]")
             return
         monitor = PerformanceMonitor(config.performance)
-        session = InteractiveSession(config, eng, None, monitor)
+        session = InteractiveSession(
+            config, eng, None, monitor,
+            agent_mode=agent_mode, max_agent_steps=max_agent_steps,
+        )
         try:
             session.run()
         finally:
@@ -244,7 +268,14 @@ def chat(ctx, model, engine, context_length, server_url, kv_quant, prompt, image
     monitor = PerformanceMonitor(config.performance)
 
     # Launch interactive session
-    session = InteractiveSession(config, eng, router, monitor, model_family=target.family)
+    session = InteractiveSession(
+        config, eng, router, monitor,
+        model_family=target.family,
+        agent_mode=agent_mode,
+        max_agent_steps=max_agent_steps,
+    )
+    if agent_mode != "manual":
+        console.print(f"  [bold yellow]Agent mode: {agent_mode}[/bold yellow]")
     
     if prompt or messages:
         # Headless mode

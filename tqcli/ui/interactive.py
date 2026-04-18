@@ -10,6 +10,14 @@ from rich.live import Live
 from rich.text import Text
 
 from tqcli.config import TqConfig
+from tqcli.core.agent_orchestrator import (
+    MODE_MANUAL,
+    MODE_TINKERING,
+    MODE_UNRESTRICTED,
+    build_tool_system_prompt,
+    make_orchestrator,
+)
+from tqcli.core.agent_tools import default_tools
 from tqcli.core.engine import ChatMessage, InferenceEngine
 from tqcli.core.handoff import generate_handoff
 from tqcli.core.performance import PerformanceMonitor
@@ -47,6 +55,8 @@ class InteractiveSession:
         router: ModelRouter | None = None,
         monitor: PerformanceMonitor | None = None,
         model_family: str = "",
+        agent_mode: str = MODE_MANUAL,
+        max_agent_steps: int = 10,
     ):
         self.config = config
         self.engine = engine
@@ -54,10 +64,23 @@ class InteractiveSession:
         self.monitor = monitor or PerformanceMonitor(config.performance)
         self._thinking_fmt = detect_thinking_format(model_family)
         self._thinking_config = ThinkingConfig(format=self._thinking_fmt, enabled=False)
-        self.history: list[ChatMessage] = [ChatMessage(role="system", content=SYSTEM_PROMPT)]
+        self.agent_mode = agent_mode
+        self.max_agent_steps = max_agent_steps
+
+        sys_prompt = SYSTEM_PROMPT
+        if agent_mode != MODE_MANUAL:
+            sys_prompt = sys_prompt + "\n\n" + build_tool_system_prompt(
+                default_tools(), agent_mode
+            )
+        self.history: list[ChatMessage] = [ChatMessage(role="system", content=sys_prompt)]
         self._conversation_dicts: list[dict] = []
-        self.last_stats: InferenceStats | None = None
+        self.last_stats: "InferenceStats | None" = None
         self.last_response: str = ""
+        self._orchestrator = (
+            make_orchestrator(engine, agent_mode, max_steps=max_agent_steps)
+            if agent_mode != MODE_MANUAL
+            else None
+        )
 
     def chat_turn(
         self, 
@@ -97,6 +120,17 @@ class InteractiveSession:
         )
         self.history.append(msg)
         self._conversation_dicts.append({"role": "user", "content": effective_input})
+
+        # Agent-mode short-circuit: orchestrator owns streaming + tool-call loop.
+        if self._orchestrator is not None:
+            final_text, self.history = self._orchestrator.run_turn(
+                self.history, max_tokens=max_tokens
+            )
+            if show_ui:
+                console.print(final_text)
+            self.last_response = final_text
+            self._conversation_dicts.append({"role": "assistant", "content": final_text})
+            return final_text
 
         # Route if router is available and multiple models exist
         if self.router:

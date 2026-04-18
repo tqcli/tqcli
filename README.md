@@ -1,10 +1,15 @@
 # tqCLI (TurboQuant CLI)
 
-**Version:** 0.5.0 — [release notes in CHANGELOG.md](CHANGELOG.md).
+**Version:** 0.6.0 — [release notes in CHANGELOG.md](CHANGELOG.md).
 
 A cross-platform CLI for **local LLM inference** using quantized models, with smart routing, real-time performance monitoring, TurboQuant KV cache compression, and automatic handoff to frontier model CLIs when local inference falls below acceptable thresholds.
 
 Built with [TurboQuant](https://arxiv.org/abs/2504.19874) methodologies — applying quantization best practices from Google Research's ICLR 2026 paper on lossless 3-bit KV cache compression.
+
+## What's new in 0.6.0
+
+- **Tri-state agentic autonomy** for `tqcli chat` — `manual` (default), `--ai-tinkering` (stages each tool call for `[Y/n/Edit]` approval), and the existing `--stop-trying-to-control-everything-and-just-let-go` mode upgraded into a full ReAct loop bounded by `--max-agent-steps`. Four core agent tools: `tq-file-read`, `tq-file-write`, `tq-terminal-exec`, `tq-interactive-prompt`. See [`docs/architecture/agent_orchestrator.md`](docs/architecture/agent_orchestrator.md).
+- **Verified end-to-end** with Gemma 4 E2B on both engines — `tests/integration_reports/agent_modes_report.md`.
 
 ## What's new in 0.5.0
 
@@ -263,6 +268,25 @@ tqcli --stop-trying-to-control-everything-and-just-let-go workers spawn 5
 ```
 
 This is equivalent to Claude Code's `--dangerously-skip-permissions` and Gemini CLI's `--yolo`. It bypasses resource guards, confirmation prompts, and safety checks. Audit logging remains active.
+
+When combined with `tqcli chat`, this flag upgrades the chat loop into a **ReAct agent**: the model emits `<tool_call>{...}</tool_call>` blocks that fire immediately (file read/write, shell exec, human prompt), up to `--max-agent-steps` iterations (default 10).
+
+## Agent Modes
+
+Three-tier autonomy for `tqcli chat`:
+
+```bash
+# Manual (default) — plain chat. CI-safe; no tool schemas injected.
+tqcli chat
+
+# AI Tinkering — model stages tool calls, you approve each actionable one.
+tqcli chat --ai-tinkering
+
+# Unrestricted (yolo) — model executes tool calls autonomously in a ReAct loop.
+tqcli --stop-trying-to-control-everything-and-just-let-go chat --max-agent-steps 10
+```
+
+Core agent tools (`tq-file-read`, `tq-file-write`, `tq-terminal-exec`, `tq-interactive-prompt`) are injected as OpenAI-style JSON schemas into the system prompt only when an agent mode is active. Manual mode passes an **empty** tool list so headless JSON-stdout pipelines remain deterministic.
 
 ## TurboQuant Reference
 

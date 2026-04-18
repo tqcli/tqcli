@@ -1,0 +1,146 @@
+{
+  "generated": "2026-04-18T13:26:13.293486",
+  "system": {
+    "os": "Linux (Ubuntu 22.04.4 LTS) (WSL2)",
+    "gpu": "NVIDIA RTX A2000 Laptop GPU",
+    "vram_mb": 4096,
+    "ram_mb": 31956,
+    "is_wsl": true,
+    "cuda_version": "n/a",
+    "cuda_toolkit": "n/a"
+  },
+  "tests": [
+    {
+      "name": "llama.cpp Gemma 4 E2B + turbo3 KV + ai_tinkering",
+      "engine": "llama.cpp",
+      "model_id": "gemma-4-e2b-it-Q4_K_M",
+      "kv_quant": "turbo3",
+      "agent_mode": "ai_tinkering",
+      "started": "2026-04-18T13:17:04",
+      "finished": "2026-04-18T13:17:27",
+      "duration_s": 22.43,
+      "passed": true,
+      "pass_count": 5,
+      "fail_count": 0,
+      "steps": [
+        {
+          "name": "model_file_present",
+          "passed": true,
+          "duration_s": 0.0,
+          "details": "path=/root/.tqcli/models/gemma-4-E2B-it-Q4_K_M.gguf exists=True",
+          "metrics": {}
+        },
+        {
+          "name": "resolve_kv_params",
+          "passed": true,
+          "duration_s": 0.0,
+          "details": "tq_available=True, level=turbo3, params={'cache_type_k': 'turbo3', 'cache_type_v': 'turbo3'}",
+          "metrics": {
+            "tq_available": true,
+            "kv_level": "turbo3",
+            "cache_type_k": "turbo3",
+            "cache_type_v": "turbo3"
+          }
+        },
+        {
+          "name": "load_model",
+          "passed": true,
+          "duration_s": 2.2397,
+          "details": "loaded Gemma 4 E2B Edge Instruct (Q4_K_M) (n_ctx=2048)",
+          "metrics": {
+            "load_time_s": 2.24
+          }
+        },
+        {
+          "name": "schema_injection_non_empty",
+          "passed": true,
+          "duration_s": 0.0,
+          "details": "4 tool schemas surfaced in agent mode",
+          "metrics": {}
+        },
+        {
+          "name": "orchestrator_run_turn",
+          "passed": true,
+          "duration_s": 20.1905,
+          "details": "final_text_len=3 | emitted_staged_tag=False | observations_fed_back=1 | final_text_head=OK.",
+          "metrics": {
+            "emitted_staged_tag": false,
+            "observations_fed_back": 1,
+            "final_text_chars": 3,
+            "run_time_s": 20.19
+          }
+        }
+      ]
+    },
+    {
+      "name": "vLLM Gemma 4 E2B + BNB_INT4 + CPU offload + turboquant35 + unrestricted",
+      "engine": "vllm",
+      "model_id": "gemma-4-e2b-it-vllm",
+      "kv_quant": "turboquant35",
+      "agent_mode": "unrestricted",
+      "started": "2026-04-18T13:17:27",
+      "finished": "2026-04-18T13:26:13",
+      "duration_s": 522.376,
+      "passed": true,
+      "pass_count": 6,
+      "fail_count": 0,
+      "steps": [
+        {
+          "name": "model_dir_present",
+          "passed": true,
+          "duration_s": 0.0001,
+          "details": "path=/root/.tqcli/models/gemma-4-e2b-it-vllm dir=True",
+          "metrics": {}
+        },
+        {
+          "name": "vllm_importable",
+          "passed": true,
+          "duration_s": 0.0,
+          "details": "vllm import OK",
+          "metrics": {}
+        },
+        {
+          "name": "build_vllm_config",
+          "passed": true,
+          "duration_s": 0.0001,
+          "details": "feasible=True | quant=bitsandbytes | cpu_offload_gb=9.9 | kv=turboquant35 | enforce_eager=True",
+          "metrics": {
+            "quantization": "bitsandbytes",
+            "cpu_offload_gb": 9.9,
+            "kv_cache_dtype": "turboquant35",
+            "enforce_eager": true,
+            "max_model_len": 2048
+          }
+        },
+        {
+          "name": "load_model",
+          "passed": true,
+          "duration_s": 202.4107,
+          "details": "loaded Gemma 4 E2B Edge Instruct (vLLM BF16) via vLLM",
+          "metrics": {
+            "load_time_s": 202.41
+          }
+        },
+        {
+          "name": "schema_injection_non_empty",
+          "passed": true,
+          "duration_s": 0.0001,
+          "details": "4 tool schemas surfaced in agent mode",
+          "metrics": {}
+        },
+        {
+          "name": "orchestrator_react_loop",
+          "passed": true,
+          "duration_s": 319.9655,
+          "details": "final_text_len=0 | emitted_live_tag=False | observations_fed_back=0 | final_text_head=",
+          "metrics": {
+            "emitted_live_tag": false,
+            "observations_fed_back": 0,
+            "final_text_chars": 0,
+            "run_time_s": 319.97
+          }
+        }
+      ]
+    }
+  ]
+}

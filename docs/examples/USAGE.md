@@ -405,6 +405,46 @@ Test coverage plan is documented in §F and §G of
 
 ---
 
+## 7. Agent Modes — **Planned (0.6.0)**
+
+Three-tier autonomy on `tqcli chat`:
+
+```bash
+# (a) Manual — default. CI-safe, deterministic, no tool schemas injected.
+tqcli chat --prompt "Summarize CHANGELOG.md" --json
+
+# (b) AI Tinkering — model stages each tool call, you approve [Y/n/Edit].
+tqcli chat --ai-tinkering
+> Read pyproject.toml and tell me the installed extras.
+# → model emits <staged_tool_call>{"name":"tq-file-read",
+#                                    "arguments":{"path":"pyproject.toml"}}</staged_tool_call>
+# → CLI prints: "Agent wants to run tq-file-read with {path: pyproject.toml}"
+# → Prompt: Proceed? [y/n/edit]
+# → On y: runs the tool, feeds Observation back to the model, loops.
+
+# (c) Unrestricted (yolo) — ReAct loop, no prompts, bounded by max_steps.
+tqcli --stop-trying-to-control-everything-and-just-let-go \
+    chat --max-agent-steps 8 \
+    --prompt "Read tests/test_basic.py, fix any failing assert, re-run pytest."
+```
+
+Under the hood:
+
+- The orchestrator (`tqcli/core/agent_orchestrator.py`) intercepts
+  `<tool_call>` / `<staged_tool_call>` blocks emitted by the local model.
+- Tool schemas (`tq-file-read`, `tq-file-write`, `tq-terminal-exec`,
+  `tq-interactive-prompt`) are injected as OpenAI-style JSON Schema into
+  the system prompt only when a mode is active — manual mode injects
+  nothing.
+- Observations are threaded back as `role=user` turns prefixed with
+  `Observation:\n`, head+tail-truncated to 1,000 chars so shell errors
+  (which land at the end of stderr) survive the cap.
+
+See [`docs/architecture/agent_orchestrator.md`](../architecture/agent_orchestrator.md)
+for the full diagram and safety model.
+
+---
+
 ## Where to look next
 
 - Architecture — [`docs/architecture/`](../architecture/README.md)
