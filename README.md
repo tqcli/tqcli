@@ -1,8 +1,22 @@
 # tqCLI (TurboQuant CLI)
 
-A cross-platform CLI for **local LLM inference** using quantized models, with smart routing, real-time performance monitoring, and automatic handoff to frontier model CLIs when local inference falls below acceptable thresholds.
+**Version:** 0.5.0 — [release notes in CHANGELOG.md](CHANGELOG.md).
+
+A cross-platform CLI for **local LLM inference** using quantized models, with smart routing, real-time performance monitoring, TurboQuant KV cache compression, and automatic handoff to frontier model CLIs when local inference falls below acceptable thresholds.
 
 Built with [TurboQuant](https://arxiv.org/abs/2504.19874) methodologies — applying quantization best practices from Google Research's ICLR 2026 paper on lossless 3-bit KV cache compression.
+
+## What's new in 0.5.0
+
+- **AI Skills Builder** ([#23](https://github.com/ithllc/tqCLI/issues/23)) — `tqcli skill generate --prd A.md --plan B.md --name my-skill` turns a PRD + Technical Plan into a working `~/.tqcli/skills/<name>/` scaffold using the local LLM (TurboQuant-aware, llama.cpp + vLLM).
+- **Headless chat + vLLM multimodal** ([#24](https://github.com/ithllc/tqCLI/issues/24)) — `tqcli chat` gains `--prompt`, `--image`, `--audio`, `--messages`, `--json`, `--max-tokens`; `VllmBackend` now passes images to `self._llm.generate()` via `multi_modal_data={"image": [...]}` so Gemma 4 E2B handles image inputs under TurboQuant KV + CPU offload.
+- **TurboQuant KV cache compression** on both llama.cpp and vLLM backends — 3.8×–6.4× cache compression with near-lossless to minimal quality trade-off (gated by CUDA 12.8+; graceful `kv:none` fallback otherwise).
+- **Unified quantization pipeline** — detects model precision and applies weight quant (bnb_int4/AWQ/GGUF) + KV compression as an explicit plan; no more silent surprises at load time.
+- **Gemma 4 E2B on 4 GB VRAM** via vLLM BNB_INT4 + CPU offload (9.9 GB) + turboquant35 — verified end-to-end in the integration suite.
+- **Multi-process mode** with shared server + workers (llama.cpp sequential or vLLM continuous batching).
+- **Closed issues shipped:** [#13](https://github.com/ithllc/tqCLI/issues/13), [#20](https://github.com/ithllc/tqCLI/issues/20), [#22](https://github.com/ithllc/tqCLI/issues/22).
+
+See [`docs/examples/USAGE.md`](docs/examples/USAGE.md) for verified end-to-end flows.
 
 ## What It Does
 
@@ -84,10 +98,16 @@ tqcli model pull qwen3-coder-30b-a3b-instruct-Q4_K_M  # 30B MoE coder (needs ~18
 tqcli
 
 # Chat with a specific model
-tqcli chat --model qwen2.5-coder-7b-instruct-Q4_K_M
+tqcli chat --model qwen3-coder-30b-a3b-instruct-Q4_K_M
+
+# Enable TurboQuant KV cache compression (CUDA 12.8+ required)
+tqcli chat --model qwen3-4b-Q4_K_M --kv-quant turbo3
 
 # In-session commands:
 #   /stats    — Show performance statistics
+#   /image    — Attach an image (multimodal models only)
+#   /audio    — Attach an audio file
+#   /think    — Force Qwen 3 thinking mode for the next turn
 #   /handoff  — Generate handoff file for frontier CLI
 #   /help     — Show help
 #   /quit     — Exit
@@ -118,7 +138,7 @@ For parallel workloads, tqCLI can run a shared inference server with multiple wo
 
 ```bash
 # Start a shared inference server
-tqcli serve start --model qwen2.5-coder-7b-instruct-Q4_K_M
+tqcli serve start --model qwen3-coder-30b-a3b-instruct-Q4_K_M
 
 # Spawn worker processes that connect to the server
 tqcli workers spawn 3
@@ -253,6 +273,21 @@ This project applies methodologies from [Google's TurboQuant research](https://a
 - **Result**: 6x+ KV cache compression at 3-bit with zero accuracy loss
 
 The quantization decision tree in tqCLI (engine selection, quant level recommendation, model sizing) is informed by the comparative analysis in the [GoogleTurboQuant](https://github.com/ithllc/GoogleTurboQuant) workspace.
+
+## Documentation
+
+| Destination | What's there |
+|-------------|--------------|
+| [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md) | Step-by-step install, first model, first chat |
+| [docs/examples/USAGE.md](docs/examples/USAGE.md) | End-to-end flows: image/audio input, llama.cpp + vLLM TurboQuant, multi-process CRM |
+| [docs/architecture/](docs/architecture/README.md) | Subsystem-by-subsystem design with Mermaid diagrams |
+| [docs/architecture/turboquant_kv.md](docs/architecture/turboquant_kv.md) | KV compression levels, per-engine dtype mapping, CUDA gating |
+| [docs/architecture/quantization_pipeline.md](docs/architecture/quantization_pipeline.md) | Detect precision → weight quant → KV stages |
+| [docs/architecture/multi_process.md](docs/architecture/multi_process.md) | Server + workers model, `assess_multiprocess`, engine concurrency |
+| [docs/contributing/](docs/contributing/) | Branch protection + skill-quality compensation strategy |
+| [docs/design/WHY_PYTHON.md](docs/design/WHY_PYTHON.md) | Language-choice rationale |
+| [docs/prompts/](docs/prompts/) | Resume + Gemini research + future-work implementation prompts |
+| [tests/integration_reports/turboquant_kv_comparison_report.md](tests/integration_reports/turboquant_kv_comparison_report.md) | Latest integration run: 7/7 tests, 137/137 step assertions |
 
 ## License
 

@@ -7,6 +7,7 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 
+from tqcli import __version__
 from tqcli.core.engine import InferenceStats
 from tqcli.core.model_registry import ModelProfile
 from tqcli.core.performance import PerformanceMonitor
@@ -15,10 +16,56 @@ from tqcli.core.router import RouteDecision
 console = Console()
 
 
+def setup_json_logging():
+    """Redirect all third-party logging and progress bars to stderr."""
+    import logging
+    import os
+    import sys
+    from functools import partial
+
+    # 1. Environment variables (inherited by vLLM subprocesses).
+    # NOTE: We deliberately do NOT set TQDM_DISABLE=1. vLLM's internals read
+    # `tqdm.format_dict['rate']` for progress accounting, and a disabled tqdm
+    # returns `rate=None` which triggers ZeroDivisionError inside vLLM. The
+    # file=sys.stderr monkey-patch below is enough to keep stdout clean.
+    os.environ["VLLM_CONFIGURE_LOGGING"] = "0"
+    os.environ["VLLM_LOGGING_LEVEL"] = "ERROR"
+
+    # 2. Redirect root logger to stderr
+    logging.basicConfig(level=logging.ERROR, stream=sys.stderr, force=True)
+
+    # 3. Capture loggers already initialized by module-level imports
+    third_party = (
+        "vllm",
+        "torch",
+        "transformers",
+        "bitsandbytes",
+        "accelerate",
+        "PIL",
+        "urllib3",
+        "nvml",
+    )
+    log_manager = logging.Logger.manager
+    for name in list(log_manager.loggerDict.keys()):
+        if name.startswith(third_party):
+            logger = logging.getLogger(name)
+            logger.handlers = []
+            logger.propagate = True
+            logger.setLevel(logging.ERROR)
+
+    # 4. Patch tqdm just in case TQDM_DISABLE isn't respected
+    try:
+        import tqdm
+
+        tqdm.tqdm = partial(tqdm.tqdm, file=sys.stderr)
+    except ImportError:
+        pass
+
+
 def print_banner():
     banner = Text()
     banner.append("tqCLI", style="bold cyan")
-    banner.append(" v0.5.0", style="dim")
+    banner.append(f" v{__version__}", style="dim")
     banner.append(" — TurboQuant Local Inference", style="white")
     console.print(Panel(banner, border_style="cyan"))
 

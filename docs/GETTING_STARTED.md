@@ -32,7 +32,7 @@ pip install -e ".[llama]"   # with llama.cpp backend
 
 ```bash
 tqcli --version
-# tqcli, version 0.1.0
+# tqcli, version 0.5.0
 ```
 
 ## Step 2: Check Your System
@@ -131,7 +131,10 @@ Q4_K_M 12B model:  ~7.2 GB file → ~9-11 GB in memory
 tqcli
 
 # Or specify a model
-tqcli chat --model qwen2.5-coder-7b-instruct-Q4_K_M
+tqcli chat --model qwen3-coder-30b-a3b-instruct-Q4_K_M
+
+# Enable TurboQuant KV cache compression (requires CUDA 12.8+)
+tqcli chat --model qwen3-4b-Q4_K_M --kv-quant turbo3
 ```
 
 ### In-Session Commands
@@ -259,10 +262,39 @@ tqcli --stop-trying-to-control-everything-and-just-let-go workers spawn 5
 
 This bypasses memory checks, confirmation prompts, and worker limits. Audit logging stays on.
 
+## Headless chat (v0.5.0)
+
+Drive the CLI from scripts or CI without the interactive REPL:
+
+```bash
+# Single-shot JSON answer (stdout parseable, chatter routed to stderr)
+tqcli chat --model qwen3-4b-Q4_K_M --kv-quant turbo3 \
+    --prompt "Summarise the README in one sentence." --json
+
+# Gemma 4 E2B on vLLM with an image attached (multimodal pass-through)
+tqcli chat --model gemma-4-e2b-it-vllm --engine vllm --kv-quant turbo3 \
+    --prompt "What colors do you see?" --image tests/fixtures/test_image.png --json
+```
+
+## Generate a skill from a PRD + Plan (v0.5.0)
+
+```bash
+tqcli skill generate \
+    --prd docs/prd/PRD_AI_Skills_Builder.md \
+    --plan docs/technical_plans/TP_AI_Skills_Builder.md \
+    --name my-skill \
+    --model qwen3-4b-Q4_K_M --engine llama.cpp --kv-quant turbo4
+```
+
+The command prompts for an interactive review before writing the generated
+files into `~/.tqcli/skills/<name>/`. Pass `--yes` to skip the prompt (CI).
+
 ## Next Steps
 
 - **Benchmark your setup**: `tqcli benchmark`
 - **Try multiple models**: download 2-3 models and let the router pick the best one per prompt
 - **Try multi-process**: `tqcli serve start` then `tqcli chat --engine server`
-- **Read the architecture**: `docs/ARCHITECTURE.md`
+- **Enable TurboQuant KV compression**: `tqcli chat --kv-quant turbo3` (see [architecture/turboquant_kv.md](architecture/turboquant_kv.md))
+- **Read the architecture**: [docs/architecture/](architecture/README.md)
+- **Walk through real flows**: [docs/examples/USAGE.md](examples/USAGE.md)
 - **Contribute**: see [CONTRIBUTING.md](../CONTRIBUTING.md)

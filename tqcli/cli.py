@@ -66,14 +66,23 @@ def main(ctx, unrestricted):
 @click.option("--server-url", default=None, help="Connect to a running inference server (multi-process mode)")
 @click.option("--kv-quant", type=click.Choice(["auto", "none", "turbo4", "turbo3", "turbo2"]),
               default="auto", help="TurboQuant KV cache compression level")
+@click.option("--prompt", "-p", default=None, help="Single-shot prompt for headless mode")
+@click.option("--image", "-i", multiple=True, help="Repeatable image path for multimodal input")
+@click.option("--audio", "-a", multiple=True, help="Repeatable audio path for multimodal input")
+@click.option("--messages", type=click.Path(exists=True), help="JSON file containing conversation history")
+@click.option("--json", "as_json", is_flag=True, help="Emit JSON to stdout, route non-JSON chatter to stderr")
+@click.option("--max-tokens", type=int, default=1024, help="Maximum tokens to generate")
 @click.pass_context
-def chat(ctx, model, engine, context_length, server_url, kv_quant):
-    """Start an interactive chat session.
+def chat(ctx, model, engine, context_length, server_url, kv_quant, prompt, image, audio, messages, as_json, max_tokens):
+    """Start an interactive or headless chat session.
 
-    Single-process (default): loads model in-process.
-    Multi-process: connect to a shared server with --engine server or --server-url.
+    Interactive (default): start a terminal chat UI.
+    Headless: provide --prompt or --messages for single-shot output.
     """
+    import json as json_lib
+    import sys
     from tqcli.config import TqConfig
+    from tqcli.core.engine import ChatMessage
     from tqcli.core.model_registry import ModelRegistry
     from tqcli.core.performance import PerformanceMonitor
     from tqcli.core.router import ModelRouter
@@ -84,7 +93,15 @@ def chat(ctx, model, engine, context_length, server_url, kv_quant):
     from tqcli.ui.interactive import InteractiveSession
 
     unrestricted = is_unrestricted(ctx)
-    print_banner()
+    if as_json:
+        # Route non-JSON chatter to stderr
+        from tqcli.ui.console import setup_json_logging
+        console.file = sys.stderr
+        setup_json_logging()
+    
+    if not as_json or not (prompt or messages):
+        print_banner()
+    
     config = TqConfig.load()
     config.ensure_dirs()
     if unrestricted:
@@ -228,6 +245,69 @@ def chat(ctx, model, engine, context_length, server_url, kv_quant):
 
     # Launch interactive session
     session = InteractiveSession(config, eng, router, monitor, model_family=target.family)
+    
+    if prompt or messages:
+        # Headless mode
+        try:
+            if messages:
+                with open(messages, "r") as f:
+                    history_dicts = json_lib.load(f)
+                    session.history = [ChatMessage(**m) for m in history_dicts]
+            
+            # Run the turn
+            user_prompt = prompt or ""
+            session.chat_turn(
+                user_prompt, 
+                images=list(image), 
+                audio=list(audio), 
+                show_ui=not as_json,
+                max_tokens=max_tokens
+            )
+            
+            if as_json:
+                from tqcli.core.thinking import extract_thinking
+                stats = session.last_stats
+                thinking_text, clean_response = extract_thinking(session.last_response, session._thinking_fmt)
+                res = {
+                    "model": target.id,
+                    "engine": selected_engine,
+                    "response": clean_response,
+                    "thinking": thinking_text or None,
+                    "usage": {
+                        "prompt_tokens": stats.prompt_tokens if stats else 0,
+                        "completion_tokens": stats.completion_tokens if stats else 0,
+                        "total_tokens": stats.total_tokens if stats else 0,
+                    },
+                    "performance": {
+                        "tokens_per_second": stats.tokens_per_second if stats else 0.0,
+                        "total_time_s": stats.total_time_s if stats else 0.0,
+                    },
+                    "metadata": {
+                        "kv_quant": kv_quant,
+                        "images": list(image),
+                        "audio": list(audio),
+                    }
+                }
+                print(json_lib.dumps(res, indent=2))
+            else:
+                # If not JSON but headless, response is already printed by chat_turn(show_ui=True)
+                pass
+                
+        except Exception as e:
+            if as_json:
+                print(json_lib.dumps({
+                    "error": str(e),
+                    "error_type": e.__class__.__name__
+                }, indent=2))
+            else:
+                console.print(f"[red]Error: {e}[/red]")
+            sys.exit(1)
+        finally:
+            eng.unload_model()
+            sec.log_event("session_end")
+        return
+
+    # Interactive mode
     try:
         session.run()
     finally:
@@ -251,9 +331,12 @@ def system_info(as_json):
     import json as json_mod
 
     from tqcli.core.system_info import detect_system
-    from tqcli.ui.console import print_system_info
+    from tqcli.ui.console import print_system_info, setup_json_logging
 
     from tqcli.core.kv_quantizer import check_turboquant_compatibility
+
+    if as_json:
+        setup_json_logging()
 
     info = detect_system()
     tq_available, tq_msg = check_turboquant_compatibility(info)
@@ -619,6 +702,136 @@ if __name__ == "__main__":
     console.print(f"  SKILL.md:  {skill_md}")
     console.print(f"  Script:    {script_file}")
     console.print(f"\nList skills with: tqcli skill list")
+
+
+@skill_group.command("generate")
+@click.option("--prd", "prd_path", required=True, type=click.Path(exists=True, dir_okay=False))
+@click.option("--plan", "plan_path", required=True, type=click.Path(exists=True, dir_okay=False))
+@click.option("--name", "skill_name", required=True, help="Target skill name (also directory slug)")
+@click.option("--model", "-m", default=None, help="Model ID (defaults to first available)")
+@click.option("--engine", "-e", type=click.Choice(["auto", "llama.cpp", "vllm"]), default="auto")
+@click.option("--kv-quant", type=click.Choice(["auto", "none", "turbo4", "turbo3", "turbo2"]),
+              default="turbo4", help="KV compression; turbo4 is the safest default for code gen")
+@click.option("--max-tokens", type=int, default=1500)
+@click.option("--yes", is_flag=True, help="Skip the interactive review prompt")
+@click.option("--overwrite", is_flag=True, help="Overwrite an existing skill directory")
+@click.pass_context
+def skill_generate(ctx, prd_path, plan_path, skill_name, model, engine, kv_quant, max_tokens, yes, overwrite):
+    """Generate a tqCLI skill from a PRD + Technical Plan using the local LLM.
+
+    The generated skill lands in ~/.tqcli/skills/<name>/ after you review it.
+    """
+    from pathlib import Path as _Path
+
+    from tqcli.config import TqConfig
+    from tqcli.core.model_registry import ModelRegistry
+    from tqcli.core.skill_generator import generate_skill, slugify, write_skill
+    from tqcli.core.system_info import detect_system
+    from tqcli.core.unrestricted import is_unrestricted
+    from tqcli.ui.console import console
+
+    unrestricted = is_unrestricted(ctx)
+    config = TqConfig.load()
+    config.ensure_dirs()
+
+    sys_info = detect_system()
+    registry = ModelRegistry(config.models_dir)
+    registry.scan_local_models()
+    available = registry.get_available_models()
+    if not available:
+        console.print("[red]No models installed.[/red] Run `tqcli model pull <id>` first.")
+        return
+
+    target = available[0]
+    if model:
+        target = registry.get_profile(model) or target
+    if not target.local_path:
+        console.print(f"[red]Model {target.id} not installed locally.[/red]")
+        return
+
+    selected_engine = engine if engine != "auto" else (target.engine or sys_info.recommended_engine)
+
+    # Build the engine the same way the chat command does (minus the router / REPL).
+    if selected_engine == "vllm":
+        from tqcli.core.vllm_backend import VllmBackend
+        from tqcli.core.vllm_config import build_vllm_config
+        tune = build_vllm_config(target, sys_info, requested_max_len=None, kv_quant_choice=kv_quant)
+        if not tune.feasible and not unrestricted:
+            console.print(f"[red]vLLM not feasible: {tune.reason}[/red]")
+            return
+        for w in tune.warnings:
+            console.print(f"  [dim]vLLM: {w}[/dim]")
+        eng = VllmBackend.from_tuning_profile(tune)
+    else:
+        from tqcli.core.kv_quantizer import (
+            KVQuantLevel, check_turboquant_compatibility, get_llama_kv_params, select_kv_quant,
+        )
+        from tqcli.core.llama_backend import LlamaBackend
+        tq_available, tq_msg = check_turboquant_compatibility(sys_info)
+        effective = kv_quant
+        if kv_quant not in ("none", "auto") and not tq_available:
+            console.print(f"  [yellow]{tq_msg}[/yellow]")
+            effective = "none"
+        kv_level = select_kv_quant(available_kv_mb=50, engine="llama.cpp", user_choice=effective)
+        kv_params = get_llama_kv_params(kv_level)
+        if kv_level != KVQuantLevel.NONE:
+            console.print(f"  [dim]TurboQuant KV: {kv_level.value} ({kv_params})[/dim]")
+        eng = LlamaBackend(
+            n_ctx=max(config.context_length, 8192),
+            n_gpu_layers=config.n_gpu_layers,
+            n_threads=config.threads,
+            cache_type_k=kv_params.get("cache_type_k", "f16"),
+            cache_type_v=kv_params.get("cache_type_v", "f16"),
+        )
+
+    if not eng.is_available:
+        console.print(f"[red]Engine '{selected_engine}' not installed.[/red]")
+        return
+
+    console.print(f"  Loading [bold]{target.display_name}[/bold] ({selected_engine})...")
+    eng.load_model(str(target.local_path), multimodal=target.multimodal)
+
+    try:
+        console.print(f"  Generating skill [bold]{skill_name}[/bold] from PRD + Plan...")
+        result = generate_skill(
+            eng,
+            prd_path=_Path(prd_path),
+            plan_path=_Path(plan_path),
+            skill_name=skill_name,
+            max_tokens=max_tokens,
+        )
+    finally:
+        eng.unload_model()
+
+    if not result.valid:
+        console.print("[red]Generation validation failed:[/red]")
+        for err in result.errors:
+            console.print(f"  - {err}")
+        console.print(f"  Raw model output: {len(result.raw_response)} chars.")
+        if not yes and not click.confirm("Write the files anyway for manual inspection?", default=False):
+            return
+
+    console.print(f"\n  Target directory: [bold]{result.target_dir}[/bold]")
+    console.print(f"  Files generated: {len(result.files)}")
+    for gf in result.files:
+        flag = "[green]OK[/green]" if (not gf.is_python or gf.ast_ok) else f"[red]{gf.error}[/red]"
+        console.print(f"    - {gf.relative_path} ({len(gf.content)} chars) {flag}")
+
+    if not yes:
+        for gf in result.files:
+            console.print(f"\n[bold]--- {gf.relative_path} ---[/bold]")
+            preview = gf.content if len(gf.content) < 2000 else gf.content[:2000] + "\n... (truncated)"
+            console.print(preview)
+        if not click.confirm(f"\nWrite to {result.target_dir}?", default=True):
+            console.print("[yellow]Aborted — no files written.[/yellow]")
+            return
+
+    try:
+        path = write_skill(result, overwrite=overwrite)
+        console.print(f"[green]Skill written:[/green] {path}")
+        console.print(f"Run with: tqcli skill run {slugify(skill_name)}")
+    except FileExistsError as e:
+        console.print(f"[red]{e}[/red] Pass --overwrite to replace.")
 
 
 @skill_group.command("run")

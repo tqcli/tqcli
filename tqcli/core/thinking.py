@@ -122,6 +122,12 @@ def extract_thinking(text: str, fmt: ThinkingFormat) -> tuple[str, str]:
     return "", text
 
 
+def extract_thinking_content(text: str, fmt: ThinkingFormat) -> str | None:
+    """Return only the thinking text (or None if none present)."""
+    thinking, _ = extract_thinking(text, fmt)
+    return thinking or None
+
+
 def is_inside_thinking_block(text: str, fmt: ThinkingFormat) -> bool:
     """Check if the text ends inside an unclosed thinking block (streaming)."""
     if fmt == ThinkingFormat.QWEN3:

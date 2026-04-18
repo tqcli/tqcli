@@ -580,6 +580,198 @@ def step_pip_show_tqcli() -> StepResult:
         )
 
 
+# ── §F vLLM multimodal image input (PLACEHOLDER — blocked) ──────────
+#
+# These helpers are stubs. They become real once
+# `docs/prompts/implement_headless_chat_and_vllm_multimodal.md` is executed
+# (landing headless `tqcli chat --prompt ... --image ... --json` and the
+# vLLM multimodal pass-through in tqcli/core/vllm_backend.py).
+#
+# Until then, the suite records each §F step as SKIPPED with the reason
+# embedded in the details field, so the comparison report shows the row
+# rather than silently dropping it.
+
+
+def step_vllm_image_input_gemma4(model_id: str) -> StepResult:
+    """§F.1 — vLLM Gemma 4 E2B + CPU offload + TurboQuant image grounding.
+
+    Headless chat + vLLM multimodal pass-through shipped in v0.5.0 (#24).
+    This step drives the real `tqcli chat --prompt ... --image ... --json`
+    command when opted in via `TQCLI_TEST_VLLM_IMAGE=1`; otherwise it records
+    the step as SKIPPED (heavy GPU load — Gemma 4 E2B cold-load on 4 GB VRAM
+    WSL2 runs ~500–625 s).
+    """
+    import os
+    import subprocess
+    import time as _t
+
+    if os.environ.get("TQCLI_TEST_VLLM_IMAGE") != "1":
+        return StepResult(
+            name="lifecycle_F1_vllm_image_gemma4",
+            passed=True,
+            duration_s=0.0,
+            details=(
+                f"SKIPPED: {model_id} — heavy GPU load gated by "
+                "TQCLI_TEST_VLLM_IMAGE=1. Command is implemented (v0.5.0, #24)."
+            ),
+            metrics={"skipped": True, "reason": "opt_in_gate", "model_id": model_id},
+        )
+
+    fixture = Path(__file__).parent / "fixtures" / "test_image.png"
+    start = _t.time()
+    try:
+        proc = subprocess.run(
+            [
+                "tqcli", "chat",
+                "--model", model_id,
+                "--engine", "vllm",
+                "--kv-quant", "turbo3",
+                "--prompt", "What colors do you see in the image?",
+                "--image", str(fixture),
+                "--json",
+                "--max-tokens", "128",
+            ],
+            capture_output=True, text=True, timeout=1800,
+        )
+        elapsed = _t.time() - start
+        data = json.loads(proc.stdout) if proc.stdout else {}
+        answer = (data.get("response") or "").lower()
+        mentions_color = ("red" in answer) or ("blue" in answer)
+        return StepResult(
+            name="lifecycle_F1_vllm_image_gemma4",
+            passed=proc.returncode == 0 and mentions_color,
+            duration_s=elapsed,
+            details=(
+                f"exit={proc.returncode} answer_len={len(answer)} "
+                f"mentions_red_or_blue={mentions_color}"
+            ),
+            metrics={
+                "model_id": model_id,
+                "tokens_per_second": data.get("performance", {}).get("tokens_per_second", 0.0),
+                "response_len": len(answer),
+            },
+        )
+    except Exception as exc:
+        return StepResult(
+            name="lifecycle_F1_vllm_image_gemma4",
+            passed=False,
+            duration_s=_t.time() - start,
+            details=f"Exception: {exc}",
+        )
+
+
+def step_vllm_image_input_non_multimodal(model_id: str) -> StepResult:
+    """§F — Non-multimodal vLLM models are recorded as N/A.
+
+    Currently applies to `qwen3-4b-AWQ` and `qwen3-4b-vllm` — these profiles
+    have `multimodal=False` in BUILTIN_PROFILES, so image input is not a
+    supported flow. Recording this explicitly prevents the comparison report
+    from silently omitting the row.
+    """
+    return StepResult(
+        name="lifecycle_F_vllm_image_text_only",
+        passed=True,
+        duration_s=0.0,
+        details=(
+            f"N/A: {model_id} is text-only (multimodal=False in "
+            "BUILTIN_PROFILES). Image input is not a supported flow for "
+            "this profile; recorded for report completeness."
+        ),
+        metrics={
+            "skipped": True,
+            "reason": "model_not_multimodal",
+            "model_id": model_id,
+        },
+    )
+
+
+# ── §G vLLM multi-process CRM build (PLACEHOLDER — blocked) ──────────
+#
+# Also blocked on the headless-chat prompt. Once headless lands, these
+# helpers should drive:
+#   1. `tqcli --stop-trying-to-control-everything-and-just-let-go serve start`
+#      with the vLLM engine + the target model.
+#   2. `tqcli skill create crm-frontend-vllm / crm-backend-vllm / crm-database-vllm`.
+#   3. Spawn workers with `tqcli chat --engine server --prompt "..."`
+#      generating each CRM artifact into a tmp workspace.
+#   4. Assert all three files exist and are non-empty, then `serve stop`.
+
+
+def step_vllm_multiprocess_crm(model_id: str) -> StepResult:
+    """§G.1 / §G.2 — vLLM multi-process CRM build.
+
+    Headless chat shipped in v0.5.0 (#24). This step is opt-in via
+    `TQCLI_TEST_VLLM_CRM=1` — it boots a real vLLM server, sends three
+    headless `--prompt ... --engine server --json` requests, and verifies
+    the three CRM artefacts are produced. Without the flag, the step is
+    recorded as SKIPPED with the heavy-GPU-load reason.
+    """
+    import os
+    import subprocess
+    import tempfile
+    import time as _t
+
+    if os.environ.get("TQCLI_TEST_VLLM_CRM") != "1":
+        return StepResult(
+            name="lifecycle_G_vllm_multiprocess_crm",
+            passed=True,
+            duration_s=0.0,
+            details=(
+                f"SKIPPED: {model_id} — heavy GPU load gated by "
+                "TQCLI_TEST_VLLM_CRM=1. Command is implemented (v0.5.0, #24)."
+            ),
+            metrics={"skipped": True, "reason": "opt_in_gate", "model_id": model_id},
+        )
+
+    start = _t.time()
+    try:
+        with tempfile.TemporaryDirectory() as td:
+            work = Path(td)
+            subprocess.run(
+                [
+                    "tqcli", "--stop-trying-to-control-everything-and-just-let-go",
+                    "serve", "start", "-m", model_id, "--engine", "vllm",
+                ],
+                check=True, timeout=1800,
+            )
+            try:
+                for slot, prompt in [
+                    ("frontend.html", "Generate a minimal HTML CRM contact form with Name/Email fields."),
+                    ("backend.py", "Generate a tiny Flask route /contacts that returns an empty JSON list."),
+                    ("schema.sql", "Generate a SQLite CREATE TABLE contacts(id, name, email) statement."),
+                ]:
+                    out = work / slot
+                    proc = subprocess.run(
+                        [
+                            "tqcli", "chat", "--engine", "server",
+                            "--prompt", prompt,
+                            "--json", "--max-tokens", "300",
+                        ],
+                        capture_output=True, text=True, timeout=1200,
+                    )
+                    data = json.loads(proc.stdout) if proc.stdout else {}
+                    out.write_text(data.get("response", ""))
+                ok = all((work / n).exists() and (work / n).stat().st_size > 10
+                         for n in ("frontend.html", "backend.py", "schema.sql"))
+            finally:
+                subprocess.run(["tqcli", "serve", "stop"], timeout=60)
+        return StepResult(
+            name="lifecycle_G_vllm_multiprocess_crm",
+            passed=ok,
+            duration_s=_t.time() - start,
+            details=f"three_artifacts_generated={ok}",
+            metrics={"model_id": model_id},
+        )
+    except Exception as exc:
+        subprocess.run(["tqcli", "serve", "stop"], timeout=60)
+        return StepResult(
+            name="lifecycle_G_vllm_multiprocess_crm",
+            passed=False,
+            duration_s=_t.time() - start,
+            details=f"Exception: {exc}",
+        )
+
+
 # ── Full lifecycle runner ────────────────────────────────────────────
 
 
@@ -617,4 +809,15 @@ def run_full_lifecycle(
     # E.9
     steps.append(step_model_remove_available(model_id))
     steps.append(step_pip_show_tqcli())
+
+    # §F vLLM image input (placeholder — skipped until headless chat + vLLM
+    # multimodal pass-through land). Only meaningful for vLLM profiles.
+    if engine == "vllm":
+        if multimodal:
+            steps.append(step_vllm_image_input_gemma4(model_id))
+        else:
+            steps.append(step_vllm_image_input_non_multimodal(model_id))
+        # §G vLLM multi-process CRM (placeholder — same blocker).
+        steps.append(step_vllm_multiprocess_crm(model_id))
+
     return steps

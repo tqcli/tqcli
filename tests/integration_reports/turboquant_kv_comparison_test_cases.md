@@ -379,9 +379,93 @@ For every `(engine, model, kv_level)` combination the report must include:
 - [ ] Flash attention enabled (`-fa`) for llama.cpp
 - [ ] Disk space available (~25 GB for full model set)
 
+---
+
+## Section F — vLLM Multimodal Image Input (blocked — depends on headless chat)
+
+**Status:** PLANNED. Depends on `docs/prompts/implement_headless_chat_and_vllm_multimodal.md` landing
+(headless `tqcli chat --prompt ... --image ... --json` + `vllm_backend.py` multimodal pass-through).
+
+**Why §F exists:** `tqcli chat` is interactive-only today and `vllm_backend._messages_to_dicts`
+strips `ChatMessage.images` / `.audio`. Until the prompt is implemented, these rows are recorded
+as SKIPPED in the comparison report (see `lifecycle_F_vllm_image_input_*` placeholder helpers in
+`tests/integration_lifecycle.py`).
+
+**Multimodal eligibility matrix (from `BUILTIN_PROFILES`):**
+
+| Model | Engine | Multimodal | Tested here? |
+|-------|--------|------------|--------------|
+| `qwen3-4b-AWQ` | vLLM | No | Skipped — record "model is text-only" in report |
+| `qwen3-4b-vllm` | vLLM | No | Skipped — same reason |
+| `gemma-4-e2b-it-vllm` | vLLM | **Yes** (head_dim=256, 35 layers) | **§F.1** |
+| `gemma-4-e4b-it-Q4_K_M` | llama.cpp | Yes | Covered separately by `llama_cpp_test_cases.md` Test 1.7 |
+
+### F.1 Gemma 4 E2B vLLM + CPU offload + turboquant35 — image grounding
+
+Driver: headless `tqcli chat` (once landed) invoked from
+`tests/integration_lifecycle.py::lifecycle_F_vllm_image_input_gemma4`.
+
+| # | Step | Expected |
+|---|------|----------|
+| 1 | `tqcli chat --model gemma-4-e2b-it-vllm --prompt "What colors do you see?" --image tests/fixtures/test_image.png --kv-quant turbo3 --json` | Exit 0; JSON `response` names colors from the fixture (red/blue) |
+| 2 | Load path reuses §C.2 wiring | `cpu_offload_gb=9.9`, `kv_cache_dtype=turboquant35`, `enforce_eager=True` |
+| 3 | TurboQuant layer coverage unchanged | 28 sliding-window layers on turboquant35, 7 full-attention layers on bf16 fallback |
+| 4 | Latency | Not asserted; load dominates (~500–625 s on 4 GB VRAM WSL2). Reported for reference. |
+| 5 | No regression of text path | Immediately following image call, a plain `--prompt "Capital of France?"` still answers "Paris" |
+
+**GitHub context:** closes the test coverage gap flagged in issue #3 (multimodal image/audio),
+building on the infrastructure delivered in #9, #20, #22.
+
+---
+
+## Section G — vLLM Multi-Process CRM Build (blocked — depends on headless chat)
+
+**Status:** PLANNED. Same blocker as §F.
+
+**Scope:** Parity with `llama_cpp_test_cases.md` Tests 3 and 4 (CRM build via multi-process server
++ workers), but running on the vLLM engine with TurboQuant KV. This exercises vLLM's continuous
+batching + PagedAttention — the engine-vs-engine differentiator for commercial multi-tenant
+workloads.
+
+**Models covered:**
+
+| Variant | Model | Pipeline |
+|---------|-------|----------|
+| G.1 | `qwen3-4b-AWQ` | pre_quantized AWQ → kv:turboquant35 (no weight stage) |
+| G.2 | `gemma-4-e2b-it-vllm` | BF16 → bnb_int4 → cpu_offload 9.9 GB → kv:turboquant35 |
+
+### G.1 vLLM Qwen 3 4B AWQ — CRM build
+
+| # | Step | Expected |
+|---|------|----------|
+| 1 | `tqcli --stop-trying-to-control-everything-and-just-let-go serve start -m qwen3-4b-AWQ --engine vllm` | Server on port 8741; engine logs show TurboQuant enabled on all 36 layers |
+| 2 | `tqcli serve status` | `engine=vllm`, health OK, TRITON_ATTN backend |
+| 3 | Create three skills: `crm-frontend-vllm`, `crm-backend-vllm`, `crm-database-vllm` | `skill list` shows all three |
+| 4 | Spawn two workers connected to the server | PagedAttention batches concurrent requests; observed throughput > 2× single-worker tok/s |
+| 5 | Each worker generates one CRM artifact via headless chat through the server client | `frontend/index.html`, `backend/app.py`, `database/schema.sql` all produced under a tmp workspace |
+| 6 | `tqcli serve stop` | Clean teardown, no leaked PIDs |
+
+### G.2 vLLM Gemma 4 E2B + CPU offload — CRM build
+
+| # | Step | Expected |
+|---|------|----------|
+| 1 | Same as G.1 but `--model gemma-4-e2b-it-vllm`. Expect ≥ 500 s server warmup (CPU offload) | `cpu_offload_gb=9.9`, `max_model_len=2048` |
+| 2 | Multi-process assess | `assess_multiprocess` returns `feasible=True`, `max_workers=1` (VRAM-bounded); single-worker run must still verify the end-to-end server + worker + headless chat loop |
+| 3 | Workers 1 | Serialized by coordinator; still produces the three CRM files |
+| 4 | Teardown | `serve stop`; `tqcli model remove` NOT executed (model stays installed per §E.9 re-runnability) |
+
+**Hardware envelope:** RTX A2000 4 GB WSL2. G.2 is throughput-bound by CPU offload (~0.2 tok/s).
+Tests assert correctness, not speed — a three-file CRM is considered "built" when all three
+files exist and are non-empty Python/HTML/SQL respectively.
+
+---
+
 ## Output Files
 
 - `tests/integration_reports/turboquant_kv_comparison_report.md`
 - `tests/integration_reports/turboquant_kv_comparison_report.json`
 
-The report aggregates Sections A–E. The Gemma 4 E2B vLLM run (Section C.2) must appear alongside the Qwen 3 comparisons so the engine-vs-engine and KV-level-vs-KV-level views are complete.
+The report aggregates Sections A–G. The Gemma 4 E2B vLLM run (Section C.2) must appear alongside
+the Qwen 3 comparisons so the engine-vs-engine and KV-level-vs-KV-level views are complete.
+§F and §G are currently placeholders; they fill in once the headless-chat + vLLM-multimodal
+prompt (`docs/prompts/implement_headless_chat_and_vllm_multimodal.md`) is executed.

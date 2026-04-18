@@ -56,8 +56,17 @@ class InteractiveSession:
         self._thinking_config = ThinkingConfig(format=self._thinking_fmt, enabled=False)
         self.history: list[ChatMessage] = [ChatMessage(role="system", content=SYSTEM_PROMPT)]
         self._conversation_dicts: list[dict] = []
+        self.last_stats: InferenceStats | None = None
+        self.last_response: str = ""
 
-    def chat_turn(self, user_input: str, images: list[str] | None = None, audio: list[str] | None = None) -> str:
+    def chat_turn(
+        self, 
+        user_input: str, 
+        images: list[str] | None = None, 
+        audio: list[str] | None = None,
+        show_ui: bool = True,
+        max_tokens: int | None = None,
+    ) -> str:
         # Qwen 3 thinking mode: user can override per-turn with /think or /no_think
         use_thinking = False
         effective_input = user_input
@@ -96,20 +105,22 @@ class InteractiveSession:
                 # Use router's thinking recommendation unless user overrode
                 if not user_input.strip().startswith(("/think ", "/no_think ")):
                     use_thinking = decision.use_thinking
-                print_route_decision(decision)
+                if show_ui:
+                    print_route_decision(decision)
                 # Update thinking format if model changed
                 self._thinking_fmt = detect_thinking_format(decision.model.family)
                 self._thinking_config = ThinkingConfig(
                     format=self._thinking_fmt, enabled=use_thinking
                 )
-                if use_thinking:
+                if use_thinking and show_ui:
                     fmt_name = "Qwen3" if self._thinking_fmt == ThinkingFormat.QWEN3 else "Gemma4"
                     console.print(f"  [dim]Thinking mode: enabled ({fmt_name} format)[/dim]")
                 # If routed to a different model than currently loaded, switch
                 if decision.model.local_path and str(decision.model.local_path) != getattr(
                     self.engine, "_model_path", ""
                 ):
-                    console.print(f"  [dim]Switching to {decision.model.display_name}...[/dim]")
+                    if show_ui:
+                        console.print(f"  [dim]Switching to {decision.model.display_name}...[/dim]")
                     self.engine.unload_model()
                     self.engine.load_model(str(decision.model.local_path))
             except RuntimeError:
@@ -126,42 +137,53 @@ class InteractiveSession:
         full_response = ""
         final_stats = None
 
-        console.print()
-        with Live(Text(""), console=console, refresh_per_second=15) as live:
-            buffer = ""
-            for chunk, stats in self.engine.chat_stream(self.history):
+        if show_ui:
+            console.print()
+            with Live(Text(""), console=console, refresh_per_second=15) as live:
+                buffer = ""
+                for chunk, stats in self.engine.chat_stream(self.history, max_tokens=max_tokens):
+                    if stats:
+                        final_stats = stats
+                        break
+                    buffer += chunk
+                    full_response += chunk
+                    # Render: show thinking blocks dimmed, strip completed ones
+                    if is_inside_thinking_block(buffer, self._thinking_fmt):
+                        # Inside an unclosed thinking block — show dimmed
+                        clean_part = strip_thinking_blocks(buffer, self._thinking_fmt)
+                        display = Text(clean_part)
+                        # Find the unclosed portion and append dimmed
+                        remainder = buffer[len(clean_part):] if len(clean_part) < len(buffer) else ""
+                        if remainder:
+                            display.append(remainder, style="dim")
+                        live.update(display)
+                    else:
+                        clean = strip_thinking_blocks(buffer, self._thinking_fmt)
+                        live.update(Text(clean))
+        else:
+            # Headless: no UI updates
+            for chunk, stats in self.engine.chat_stream(self.history, max_tokens=max_tokens):
                 if stats:
                     final_stats = stats
                     break
-                buffer += chunk
                 full_response += chunk
-                # Render: show thinking blocks dimmed, strip completed ones
-                if is_inside_thinking_block(buffer, self._thinking_fmt):
-                    # Inside an unclosed thinking block — show dimmed
-                    clean_part = strip_thinking_blocks(buffer, self._thinking_fmt)
-                    display = Text(clean_part)
-                    # Find the unclosed portion and append dimmed
-                    remainder = buffer[len(clean_part):] if len(clean_part) < len(buffer) else ""
-                    if remainder:
-                        display.append(remainder, style="dim")
-                    live.update(display)
-                else:
-                    clean = strip_thinking_blocks(buffer, self._thinking_fmt)
-                    live.update(Text(clean))
 
+        self.last_stats = final_stats
+        self.last_response = full_response
         self.history.append(ChatMessage(role="assistant", content=full_response))
         self._conversation_dicts.append({"role": "assistant", "content": full_response})
 
         # Record performance
         if final_stats:
             self.monitor.record(final_stats.completion_tokens, final_stats.completion_time_s)
-            print_stats_bar(final_stats)
+            if show_ui:
+                print_stats_bar(final_stats)
 
-            # Check performance thresholds
-            if self.monitor.is_warning:
-                print_performance_warning(self.monitor)
-            elif self.monitor.should_handoff and self.config.performance.auto_handoff:
-                self._do_handoff(user_input)
+                # Check performance thresholds
+                if self.monitor.is_warning:
+                    print_performance_warning(self.monitor)
+                elif self.monitor.should_handoff and self.config.performance.auto_handoff:
+                    self._do_handoff(user_input)
 
         return full_response
 

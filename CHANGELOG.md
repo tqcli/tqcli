@@ -5,6 +5,54 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2026-04-17
+
+### Added
+
+- **`tqcli skill generate`** — AI Skills Builder (#23). Reads a PRD + Technical
+  Plan and asks the currently configured local LLM to emit a complete skill
+  scaffold (`SKILL.md` + Python script(s)) into `~/.tqcli/skills/<name>/`.
+  Runs TurboQuant-aware on llama.cpp and vLLM, parses `<file path="">`-tagged
+  output (plus a `FILE:` fenced-block fallback), validates Python with
+  `ast.parse()` before writing, and defaults to an interactive review prompt.
+  New module `tqcli/core/skill_generator.py` and prompt template
+  `tqcli/prompts/skill_generation_prompt.md`.
+- **Headless chat** on `tqcli chat` (#24): `--prompt`, `--image` (repeatable),
+  `--audio` (repeatable), `--messages`, `--json`, `--max-tokens`. When `--json`
+  is set, the result is emitted as a structured object on stdout
+  (`model/engine/response/thinking/usage/performance/metadata`) and all other
+  chatter is routed to stderr; exit non-zero on failure.
+- **vLLM multimodal pass-through** (#24): `VllmBackend._messages_to_dicts`
+  now emits the content-list form so the tokenizer inserts the Gemma 4
+  `<start_of_image>` placeholder, and `chat()` passes PIL images to
+  `self._llm.generate()` via `multi_modal_data={"image": [...]}`. Preserves
+  `cpu_offload_gb`, `kv_cache_dtype`, `enable_turboquant`, and `enforce_eager`
+  wiring.
+- New helper `extract_thinking_content()` in `tqcli/core/thinking.py`.
+- Tests: `tests/test_skill_generator.py`, `tests/test_headless_chat.py`.
+
+### Changed
+
+- `InteractiveSession.chat_turn()` gains `show_ui` and `max_tokens` parameters
+  and surfaces `last_response` / `last_stats` so a single code path covers both
+  the interactive REPL and headless single-shot mode.
+
+### Fixed
+
+- `--json` stdout is now strict-parser clean ([#25](https://github.com/ithllc/tqCLI/issues/25)).
+  Previously the Rich console was routed to stderr but third-party libraries
+  (`vllm`, `torch`, `bitsandbytes`, `transformers`, `accelerate`, `PIL`,
+  `urllib3`) still wrote `INFO`/`WARNING` records to stdout, and `tqdm`
+  progress bars (e.g. `Processed prompts: ...`) rendered to stdout. Added
+  `tqcli.ui.console.setup_json_logging()` which, before engine import:
+  sets `VLLM_CONFIGURE_LOGGING=0`, `VLLM_LOGGING_LEVEL=ERROR`, and
+  `TQDM_DISABLE=1` (inherited by vLLM `EngineCore` subprocesses); forces the
+  root logger to `sys.stderr` via `logging.basicConfig(force=True, ...)`;
+  walks `logging.Logger.manager.loggerDict` and clears any handlers already
+  installed on third-party loggers; and globally patches `tqdm.tqdm` to
+  default `file=sys.stderr`. Verified: `tqcli chat ... --json | jq -e
+  '.response'` exits 0 on both llama.cpp and vLLM paths.
+
 ## [0.3.1] - 2026-04-14
 
 ### Changed

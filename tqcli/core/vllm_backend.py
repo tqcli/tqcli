@@ -132,8 +132,24 @@ class VllmBackend(InferenceEngine):
         return self._llm is not None
 
     def _messages_to_dicts(self, messages: list[ChatMessage]) -> list[dict]:
-        """Convert ChatMessage list to OpenAI-style message dicts."""
-        return [{"role": m.role, "content": m.content} for m in messages]
+        """Convert ChatMessage list to OpenAI-style message dicts with multimodal support."""
+        dicts = []
+        for m in messages:
+            content = []
+            if m.images:
+                for _ in m.images:
+                    content.append({"type": "image"})
+            if m.audio:
+                for _ in m.audio:
+                    content.append({"type": "audio"})
+            
+            # If no multimodal, just use string content for better compatibility
+            if not content:
+                dicts.append({"role": m.role, "content": m.content})
+            else:
+                content.append({"type": "text", "text": m.content})
+                dicts.append({"role": m.role, "content": content})
+        return dicts
 
     def _apply_chat_template(self, messages: list[ChatMessage]) -> str:
         """Format messages using the model's tokenizer chat template."""
@@ -151,7 +167,12 @@ class VllmBackend(InferenceEngine):
         """Fallback prompt formatting when tokenizer has no chat template."""
         parts = []
         for msg in messages:
-            parts.append(f"{msg.role}: {msg.content}")
+            content_str = msg.content
+            if msg.images:
+                content_str = "[Image] " * len(msg.images) + content_str
+            if msg.audio:
+                content_str = "[Audio] " * len(msg.audio) + content_str
+            parts.append(f"{msg.role}: {content_str}")
         parts.append("assistant:")
         return "\n".join(parts)
 
@@ -160,8 +181,24 @@ class VllmBackend(InferenceEngine):
             raise RuntimeError("No model loaded. Call load_model() first.")
 
         from vllm import SamplingParams
+        from PIL import Image
 
         prompt = self._apply_chat_template(messages)
+        
+        # Prepare multi_modal_data
+        multi_modal_data = {}
+        images = []
+        for msg in messages:
+            if msg.images:
+                for img_path in msg.images:
+                    try:
+                        images.append(Image.open(img_path).convert("RGB"))
+                    except Exception as e:
+                        raise RuntimeError(f"Failed to load image {img_path}: {e}")
+        
+        if images:
+            multi_modal_data["image"] = images
+
         sampling = SamplingParams(
             max_tokens=kwargs.get("max_tokens", 1024),
             temperature=kwargs.get("temperature", 0.7),
@@ -170,7 +207,14 @@ class VllmBackend(InferenceEngine):
         )
 
         start = time.perf_counter()
-        outputs = self._llm.generate([prompt], sampling)
+        # Use content-list form if multimodal data is present
+        if multi_modal_data:
+            outputs = self._llm.generate(
+                [{"prompt": prompt, "multi_modal_data": multi_modal_data}], 
+                sampling
+            )
+        else:
+            outputs = self._llm.generate([prompt], sampling)
         elapsed = time.perf_counter() - start
 
         output = outputs[0]
