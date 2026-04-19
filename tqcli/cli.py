@@ -581,6 +581,93 @@ def model_quantize(model_id, method, bits):
         console.print(f"  INT4 size:         ~{int4_size:,} MB (still exceeds VRAM)")
 
 
+@model.command("calibrate-kv")
+@click.argument("model_id")
+@click.option("--recipe", type=click.Choice(["turboquant25", "turboquant35"]),
+              default="turboquant35",
+              help="TurboQuant recipe to calibrate for (default: turboquant35).")
+@click.option("--force", is_flag=True,
+              help="Overwrite an existing turboquant_kv.json.")
+def model_calibrate_kv(model_id: str, recipe: str, force: bool) -> None:
+    """Pre-calibrate TurboQuant KV metadata for a vLLM model.
+
+    Runs activation-based calibration on a diverse prompt corpus to
+    produce turboquant_kv.json with per-layer, per-KV-head outlier
+    channel indices. Pre-warming this avoids lazy calibration at first
+    chat invocation and makes the calibration failure mode explicit.
+    """
+    from pathlib import Path
+    import sys
+
+    from tqcli.config import TqConfig
+    from tqcli.core.kv_metadata_generator import (
+        check_calibration_preconditions,
+        generate_turboquant_metadata,
+    )
+    from tqcli.core.model_registry import ModelRegistry
+    from tqcli.ui.console import console
+
+    config = TqConfig.load()
+    registry = ModelRegistry(config.models_dir)
+    registry.scan_local_models()
+    profile = registry.get_profile(model_id)
+    if profile is None:
+        console.print(f"[red]Unknown model: {model_id}[/red]")
+        console.print("Installed models:")
+        for p in registry.get_all_profiles():
+            if p.local_path:
+                console.print(f"  {p.id}")
+        sys.exit(2)
+
+    if not profile.local_path:
+        console.print(
+            f"[red]{model_id} is not installed locally.[/red] "
+            f"Run `tqcli model pull {model_id}` first."
+        )
+        sys.exit(2)
+
+    model_dir = Path(profile.local_path)
+    if model_dir.is_file():
+        model_dir = model_dir.parent
+
+    if profile.engine != "vllm":
+        console.print(
+            f"[yellow]{model_id} uses engine={profile.engine}, not vllm. "
+            f"TurboQuant KV metadata generation is vLLM-only; llama.cpp uses "
+            f"runtime cache_type_k / cache_type_v without metadata.[/yellow]"
+        )
+        sys.exit(2)
+
+    metadata_path = model_dir / "turboquant_kv.json"
+    if metadata_path.is_file() and not force:
+        console.print(
+            f"[yellow]Metadata already exists at {metadata_path}[/yellow]"
+        )
+        console.print("Pass --force to regenerate.")
+        sys.exit(0)
+
+    ok, reason = check_calibration_preconditions(model_dir, recipe)
+    if not ok:
+        console.print(f"[red]Calibration refused:[/red] {reason}")
+        sys.exit(3)
+
+    console.print(f"Calibrating [bold]{profile.display_name}[/bold] for recipe [bold]{recipe}[/bold]")
+    console.print(f"  Model dir: {model_dir}")
+    console.print(f"  Output:    {metadata_path}")
+    console.print("  Running 30-prompt activation calibration...")
+    try:
+        generated = generate_turboquant_metadata(
+            model_dir=model_dir,
+            kv_cache_dtype=recipe,
+        )
+    except Exception as exc:
+        console.print(f"[red]Calibration failed:[/red] {type(exc).__name__}: {exc}")
+        sys.exit(4)
+
+    size_kb = generated.stat().st_size / 1024.0
+    console.print(f"[green]Wrote {generated} ({size_kb:.1f} KB)[/green]")
+
+
 # ── Benchmark ─────────────────────────────────────────────────────────
 
 
