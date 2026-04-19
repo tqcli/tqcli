@@ -1,5 +1,5 @@
 {
-  "generated": "2026-04-18T18:30:49.488673",
+  "generated": "2026-04-19T14:24:35.450128",
   "system": {
     "os": "Linux (Ubuntu 22.04.4 LTS) (WSL2)",
     "gpu": "NVIDIA RTX A2000 Laptop GPU",
@@ -18,9 +18,9 @@
       "mode": "ai_tinkering",
       "kv_quant": "turbo3 (cache_type_k=turbo3, cache_type_v=turbo3)",
       "is_data_point": true,
-      "started": "2026-04-18T18:09:33",
-      "finished": "2026-04-18T18:09:41",
-      "duration_s": 8.209,
+      "started": "2026-04-19T13:52:12",
+      "finished": "2026-04-19T13:52:21",
+      "duration_s": 8.192,
       "passed": true,
       "pass_count": 1,
       "fail_count": 0,
@@ -28,7 +28,7 @@
         {
           "name": "zero_shot_data_point",
           "passed": true,
-          "duration_s": 8.2092,
+          "duration_s": 8.192,
           "details": "emitted_staged_tool_call=True | chars=117 | head=<staged_tool_call>{ \"name\":\"tq-file-read\", \"arguments\":{ \"path\":\"/tmp/tqcli_agent_fixture.txt\" } }</staged_tool_call>",
           "metrics": {
             "emitted_tag": true,
@@ -47,9 +47,9 @@
       "mode": "ai_tinkering",
       "kv_quant": "turbo3 (cache_type_k=turbo3, cache_type_v=turbo3)",
       "is_data_point": false,
-      "started": "2026-04-18T18:09:41",
-      "finished": "2026-04-18T18:09:50",
-      "duration_s": 9.615,
+      "started": "2026-04-19T13:52:21",
+      "finished": "2026-04-19T13:52:27",
+      "duration_s": 6.699,
       "passed": true,
       "pass_count": 6,
       "fail_count": 0,
@@ -74,7 +74,7 @@
           "name": "observation_appended",
           "passed": true,
           "duration_s": 0.0,
-          "details": "hist_len=5 / hist_before=2 / obs_count=1 / obs_head=Observation:\nsecret_word=ALPHACHARLIE-5d1b1d9d09e9\n",
+          "details": "hist_len=5 / hist_before=2 / obs_count=1 / obs_head=Observation:\nsecret_word=ALPHACHARLIE-2c299d6aefe2\n",
           "metrics": {
             "observation_turns": 1
           }
@@ -92,12 +92,12 @@
         {
           "name": "secret_word_in_real_followup",
           "passed": true,
-          "duration_s": 9.6152,
-          "details": "secret=ALPHACHARLIE-5d1b1d9d09e9 | found_in_final=True | final_len=273 | final_head=Thank you for providing the observation.  The secret word is: **ALPHACHARLIE-5d1b1d9d09e9**  How would you like me to proceed with this information? For example, are you asking me to: 1. Verify this against something else? 2. Use this word ",
+          "duration_s": 6.6989,
+          "details": "secret=ALPHACHARLIE-2c299d6aefe2 | found_in_final=True | final_len=134 | final_head=Thank you for providing the observation.  The secret word is: **ALPHACHARLIE-2c299d6aefe2**  How can I help you with this information?",
           "metrics": {
             "secret_found": true,
-            "secret_word": "ALPHACHARLIE-5d1b1d9d09e9",
-            "final_text_chars": 273
+            "secret_word": "ALPHACHARLIE-2c299d6aefe2",
+            "final_text_chars": 134
           }
         },
         {
@@ -117,8 +117,8 @@
       "mode": "ai_tinkering",
       "kv_quant": "turbo3 (cache_type_k=turbo3, cache_type_v=turbo3)",
       "is_data_point": false,
-      "started": "2026-04-18T18:09:50",
-      "finished": "2026-04-18T18:09:50",
+      "started": "2026-04-19T13:52:27",
+      "finished": "2026-04-19T13:52:27",
       "duration_s": 0.0,
       "passed": true,
       "pass_count": 4,
@@ -148,7 +148,7 @@
         {
           "name": "loop_terminated_after_denial",
           "passed": true,
-          "duration_s": 0.0001,
+          "duration_s": 0.0002,
           "details": "scripted=1 real=0",
           "metrics": {}
         }
@@ -162,9 +162,9 @@
       "mode": "ai_tinkering",
       "kv_quant": "turbo3 (cache_type_k=turbo3, cache_type_v=turbo3)",
       "is_data_point": false,
-      "started": "2026-04-18T18:09:50",
-      "finished": "2026-04-18T18:09:56",
-      "duration_s": 5.392,
+      "started": "2026-04-19T13:52:27",
+      "finished": "2026-04-19T13:52:31",
+      "duration_s": 3.712,
       "passed": true,
       "pass_count": 3,
       "fail_count": 0,
@@ -186,7 +186,7 @@
         {
           "name": "original_mark_never_created",
           "passed": true,
-          "duration_s": 5.3919,
+          "duration_s": 3.712,
           "details": "path=/tmp/tq_t3_ORIGINAL exists=False",
           "metrics": {}
         }
@@ -200,9 +200,9 @@
       "mode": "unrestricted",
       "kv_quant": "turbo3 (cache_type_k=turbo3, cache_type_v=turbo3)",
       "is_data_point": false,
-      "started": "2026-04-18T18:09:56",
-      "finished": "2026-04-18T18:10:01",
-      "duration_s": 4.949,
+      "started": "2026-04-19T13:52:31",
+      "finished": "2026-04-19T13:52:35",
+      "duration_s": 3.863,
       "passed": true,
       "pass_count": 6,
       "fail_count": 0,
@@ -225,7 +225,7 @@
           "name": "observation_carries_secret",
           "passed": true,
           "duration_s": 0.0,
-          "details": "obs_head=Observation:\nsecret_word=ALPHACHARLIE-e472127f2261\n",
+          "details": "obs_head=Observation:\nsecret_word=ALPHACHARLIE-98ead8448b43\n",
           "metrics": {}
         },
         {
@@ -238,11 +238,11 @@
         {
           "name": "secret_word_in_real_followup",
           "passed": true,
-          "duration_s": 4.9487,
-          "details": "secret=ALPHACHARLIE-e472127f2261 / found_in_final=True / final_head=Okay, I have read the observation.  The secret word is: **ALPHACHARLIE-e472127f2261**",
+          "duration_s": 3.8626,
+          "details": "secret=ALPHACHARLIE-98ead8448b43 / found_in_final=True / final_head=Okay, I have read the observation.  The secret word is: **ALPHACHARLIE-98ead8448b43**",
           "metrics": {
             "secret_found": true,
-            "secret_word": "ALPHACHARLIE-e472127f2261"
+            "secret_word": "ALPHACHARLIE-98ead8448b43"
           }
         },
         {
@@ -262,9 +262,9 @@
       "mode": "unrestricted",
       "kv_quant": "turbo3 (cache_type_k=turbo3, cache_type_v=turbo3)",
       "is_data_point": false,
-      "started": "2026-04-18T18:10:01",
-      "finished": "2026-04-18T18:10:11",
-      "duration_s": 10.623,
+      "started": "2026-04-19T13:52:35",
+      "finished": "2026-04-19T13:52:46",
+      "duration_s": 11.427,
       "passed": true,
       "pass_count": 3,
       "fail_count": 0,
@@ -286,7 +286,7 @@
         {
           "name": "orchestrator_did_not_crash",
           "passed": true,
-          "duration_s": 10.6231,
+          "duration_s": 11.4269,
           "details": "ran to completion",
           "metrics": {}
         }
@@ -300,9 +300,9 @@
       "mode": "ai_tinkering",
       "kv_quant": "turbo3 (cache_type_k=turbo3, cache_type_v=turbo3)",
       "is_data_point": true,
-      "started": "2026-04-18T18:10:16",
-      "finished": "2026-04-18T18:10:45",
-      "duration_s": 28.926,
+      "started": "2026-04-19T13:52:55",
+      "finished": "2026-04-19T13:53:24",
+      "duration_s": 28.552,
       "passed": true,
       "pass_count": 1,
       "fail_count": 0,
@@ -310,7 +310,7 @@
         {
           "name": "zero_shot_data_point",
           "passed": true,
-          "duration_s": 28.9256,
+          "duration_s": 28.5523,
           "details": "emitted_staged_tool_call=False | chars=1121 | head=<think> Okay, the user wants me to use the tq-file-read tool to read the file at /tmp/tqcli_agent_fixture.txt. They specified that the response should be exactl",
           "metrics": {
             "emitted_tag": false,
@@ -329,9 +329,9 @@
       "mode": "ai_tinkering",
       "kv_quant": "turbo3 (cache_type_k=turbo3, cache_type_v=turbo3)",
       "is_data_point": false,
-      "started": "2026-04-18T18:10:45",
-      "finished": "2026-04-18T18:11:09",
-      "duration_s": 23.925,
+      "started": "2026-04-19T13:53:24",
+      "finished": "2026-04-19T13:53:49",
+      "duration_s": 25.433,
       "passed": true,
       "pass_count": 6,
       "fail_count": 0,
@@ -356,7 +356,7 @@
           "name": "observation_appended",
           "passed": true,
           "duration_s": 0.0,
-          "details": "hist_len=5 / hist_before=2 / obs_count=1 / obs_head=Observation:\nsecret_word=ALPHACHARLIE-c003f369de3c\n",
+          "details": "hist_len=5 / hist_before=2 / obs_count=1 / obs_head=Observation:\nsecret_word=ALPHACHARLIE-a30479282136\n",
           "metrics": {
             "observation_turns": 1
           }
@@ -374,12 +374,12 @@
         {
           "name": "secret_word_in_real_followup",
           "passed": true,
-          "duration_s": 23.9248,
-          "details": "secret=ALPHACHARLIE-c003f369de3c | found_in_final=True | final_len=771 | final_head=<think> Okay, the user asked me to read the fixture, and I used the tool to read the file. The observation shows that the secret word is ALPHACHARLIE-c003f369de3c. I need to present this information clearly. Let me check if there's anything",
+          "duration_s": 25.4333,
+          "details": "secret=ALPHACHARLIE-a30479282136 | found_in_final=True | final_len=628 | final_head=<think> Okay, the user asked me to read the fixture, and I used the tool to read the file. The observation shows that the secret word is \"ALPHACHARLIE-a30479282136\". I need to confirm if this is the correct value. Let me check the fixture p",
           "metrics": {
             "secret_found": true,
-            "secret_word": "ALPHACHARLIE-c003f369de3c",
-            "final_text_chars": 771
+            "secret_word": "ALPHACHARLIE-a30479282136",
+            "final_text_chars": 628
           }
         },
         {
@@ -399,9 +399,9 @@
       "mode": "unrestricted",
       "kv_quant": "turbo3 (cache_type_k=turbo3, cache_type_v=turbo3)",
       "is_data_point": false,
-      "started": "2026-04-18T18:11:09",
-      "finished": "2026-04-18T18:11:35",
-      "duration_s": 26.5,
+      "started": "2026-04-19T13:53:49",
+      "finished": "2026-04-19T13:54:14",
+      "duration_s": 24.631,
       "passed": true,
       "pass_count": 6,
       "fail_count": 0,
@@ -424,7 +424,7 @@
           "name": "observation_carries_secret",
           "passed": true,
           "duration_s": 0.0,
-          "details": "obs_head=Observation:\nsecret_word=ALPHACHARLIE-5bf0d6f09a46\n",
+          "details": "obs_head=Observation:\nsecret_word=ALPHACHARLIE-2f8df3b6f91b\n",
           "metrics": {}
         },
         {
@@ -437,11 +437,11 @@
         {
           "name": "secret_word_in_real_followup",
           "passed": true,
-          "duration_s": 26.5004,
-          "details": "secret=ALPHACHARLIE-5bf0d6f09a46 / found_in_final=True / final_head=<think> Okay, the user asked me to read a file, and I used the tq-file-read tool to read the file at /tmp/tqcli_agent_fixture.txt. The observation from that action was \"secret_word=ALPHACHARLIE-5bf0d6f09a46\". So, the content of the file is ",
+          "duration_s": 24.631,
+          "details": "secret=ALPHACHARLIE-2f8df3b6f91b / found_in_final=True / final_head=<think> Okay, the user asked me to \"read it\" after I provided an observation that included a variable called secret_word with a specific value. Let me break this down.  First, the user's initial message was \"read it\". Since I'm an AI assist",
           "metrics": {
             "secret_found": true,
-            "secret_word": "ALPHACHARLIE-5bf0d6f09a46"
+            "secret_word": "ALPHACHARLIE-2f8df3b6f91b"
           }
         },
         {
@@ -461,9 +461,9 @@
       "mode": "unrestricted",
       "kv_quant": "turboquant35 (quant=bitsandbytes, cpu_offload_gb=9.9)",
       "is_data_point": true,
-      "started": "2026-04-18T18:14:05",
-      "finished": "2026-04-18T18:14:51",
-      "duration_s": 45.902,
+      "started": "2026-04-19T13:57:12",
+      "finished": "2026-04-19T13:58:05",
+      "duration_s": 52.76,
       "passed": true,
       "pass_count": 1,
       "fail_count": 0,
@@ -471,7 +471,7 @@
         {
           "name": "zero_shot_data_point",
           "passed": true,
-          "duration_s": 45.9024,
+          "duration_s": 52.76,
           "details": "emitted_tool_call=True | chars=102 | head=    <tool_call>{\"name\":\"tq-file-read\",\"arguments\":{\"path\":\"/tmp/tqcli_agent_fixture.txt\"}}</tool_call>",
           "metrics": {
             "emitted_tag": true,
@@ -490,9 +490,9 @@
       "mode": "ai_tinkering",
       "kv_quant": "turboquant35 (quant=bitsandbytes, cpu_offload_gb=9.9)",
       "is_data_point": false,
-      "started": "2026-04-18T18:14:51",
-      "finished": "2026-04-18T18:15:12",
-      "duration_s": 20.441,
+      "started": "2026-04-19T13:58:05",
+      "finished": "2026-04-19T14:00:43",
+      "duration_s": 158.71,
       "passed": true,
       "pass_count": 6,
       "fail_count": 0,
@@ -517,7 +517,7 @@
           "name": "observation_appended",
           "passed": true,
           "duration_s": 0.0,
-          "details": "hist_len=5 / hist_before=2 / obs_count=1 / obs_head=Observation:\nsecret_word=ALPHACHARLIE-54fe6b605dd3\n",
+          "details": "hist_len=5 / hist_before=2 / obs_count=1 / obs_head=Observation:\nsecret_word=ALPHACHARLIE-199bbc8a829f\n",
           "metrics": {
             "observation_turns": 1
           }
@@ -535,12 +535,12 @@
         {
           "name": "secret_word_in_real_followup",
           "passed": true,
-          "duration_s": 20.4412,
-          "details": "secret=ALPHACHARLIE-54fe6b605dd3 | found_in_final=True | final_len=27 | final_head=\"ALPHACHARLIE-54fe6b605dd3\"",
+          "duration_s": 158.7099,
+          "details": "secret=ALPHACHARLIE-199bbc8a829f | found_in_final=True | final_len=508 | final_head=<thought>The user asked me to read the fixture. I executed a tool call to read a file named `/tmp/tqcli_agent_fixture.txt`. The observation returned the content: `secret_word=ALPHACHARLIE-199bbc8a829f`. This looks like the content of the fi",
           "metrics": {
             "secret_found": true,
-            "secret_word": "ALPHACHARLIE-54fe6b605dd3",
-            "final_text_chars": 27
+            "secret_word": "ALPHACHARLIE-199bbc8a829f",
+            "final_text_chars": 508
           }
         },
         {
@@ -560,9 +560,9 @@
       "mode": "unrestricted",
       "kv_quant": "turboquant35 (quant=bitsandbytes, cpu_offload_gb=9.9)",
       "is_data_point": false,
-      "started": "2026-04-18T18:15:12",
-      "finished": "2026-04-18T18:18:35",
-      "duration_s": 203.1,
+      "started": "2026-04-19T14:00:43",
+      "finished": "2026-04-19T14:01:24",
+      "duration_s": 40.327,
       "passed": true,
       "pass_count": 6,
       "fail_count": 0,
@@ -585,7 +585,7 @@
           "name": "observation_carries_secret",
           "passed": true,
           "duration_s": 0.0,
-          "details": "obs_head=Observation:\nsecret_word=ALPHACHARLIE-d42047fe16a5\n",
+          "details": "obs_head=Observation:\nsecret_word=ALPHACHARLIE-ad2efa474311\n",
           "metrics": {}
         },
         {
@@ -598,11 +598,11 @@
         {
           "name": "secret_word_in_real_followup",
           "passed": true,
-          "duration_s": 203.1002,
-          "details": "secret=ALPHACHARLIE-d42047fe16a5 / found_in_final=True / final_head=<thought The user has provided an observation containing a secret word. The goal is to process this information. Since the previous turn was a tool call to read a file, and now I have the observation, I need to determine the next step based",
+          "duration_s": 40.3268,
+          "details": "secret=ALPHACHARLIE-ad2efa474311 / found_in_final=True / final_head=I have read the text.  The content is: ``` secret_word=ALPHACHARLIE-ad2efa474311 ```",
           "metrics": {
             "secret_found": true,
-            "secret_word": "ALPHACHARLIE-d42047fe16a5"
+            "secret_word": "ALPHACHARLIE-ad2efa474311"
           }
         },
         {
@@ -620,11 +620,11 @@
       "engine": "vllm",
       "model": "qwen3-4b-vllm",
       "mode": "unrestricted",
-      "kv_quant": "auto (quant=bitsandbytes, cpu_offload_gb=6.5)  [kv:none \u2014 turboquant_kv.json not present for Qwen3 4B]",
+      "kv_quant": "turboquant35 (quant=bitsandbytes, cpu_offload_gb=6.5)",
       "is_data_point": true,
-      "started": "2026-04-18T18:19:47",
-      "finished": "2026-04-18T18:23:22",
-      "duration_s": 215.104,
+      "started": "2026-04-19T14:04:54",
+      "finished": "2026-04-19T14:10:05",
+      "duration_s": 311.504,
       "passed": true,
       "pass_count": 1,
       "fail_count": 0,
@@ -632,13 +632,13 @@
         {
           "name": "zero_shot_data_point",
           "passed": true,
-          "duration_s": 215.1035,
-          "details": "emitted_tool_call=False | chars=1180 | head=<think> Okay, the user wants me to use the tq-file-read tool to read the file located at /tmp/tqcli_agent_fixture.txt. They specified that I need to reply with ",
+          "duration_s": 311.5039,
+          "details": "emitted_tool_call=True | chars=339 | head=<think>      </think>                                 <tool_call>  <tool_call>  </think>            <tool_call>{\"{\"{\"{\"{\"{\"{\"\"name\"arguments\"\"\"\u7684\"\u7684\"\"\u7684\"\"\u7684\"\u7684\"\"\"\u7684\"\u7684",
           "metrics": {
-            "emitted_tag": false,
-            "chars": 1180,
+            "emitted_tag": true,
+            "chars": 339,
             "tag_name": "tool_call",
-            "raw_output": "<think>\nOkay, the user wants me to use the tq-file-read tool to read the file located at /tmp/tqcli_agent_fixture.txt. They specified that I need to reply with exactly one tool_call block containing JSON and nothing else. Let me make sure I'm following the instructions correctly.\n\nFirst, I need to confirm that the tool name is correct. The tool is called \"tq-file-read\", so that's straightforward. The arguments should include the path to the file. The path provided is /tmp/tqcli_agent_fixture.txt. I need to structure the JSON with the name of the tool and the arguments as a JSON object with the path.\n\nI should check if there are any additional parameters required, but the user didn't mention any, so I'll stick to the path. The format needs to be a single JSON object inside the tool_call tags. No extra text or explanations, just the JSON. Let me make sure the syntax is correct: double quotes, proper commas, and the correct structure.\n\nSo the final output should be a single line with the tool_call tag, then the JSON, then closing the tag. No line breaks or other characters. Let me double-check the example given. The example shows the JSON inside the tool_call tags."
+            "raw_output": "<think>\n\n\n\n\n\n</think>\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n<tool_call>\n\n<tool_call>\n\n</think>\n\n\n\n\n\n\n\n\n\n\n\n<tool_call>{\"{\"{\"{\"{\"{\"{\"\"name\"arguments\"\"\"\u7684\"\u7684\"\"\u7684\"\"\u7684\"\u7684\"\"\"\u7684\"\u7684\"\u7684\"\u7684\"\u7684\"\u7684\"\"\"\"\u7684\"\"\"\u7684\"\u7684\"\"\u7684\"\u7684\"\u7684\"\u7684\"\u7684\"\u7684\"\u7684\"\u7684\"\u7684\"\u7684\"\u7684\"\u7684\"\u7684\"\u7684\"\u7684\"\u7684\"\u7684\"\u7684\"\u7684\"\u7684\"\u7684\"\u7684\"\u7684\"\"\"\u7684\"\u7684\"\u7684\"\"\u7684\"\u7684\"\"\"\u7684\"\u7684\"\u7684\"\u7684\"\"\u7684\"\"\"\u7684\u7684\u7684\"\u7684\"\u7684\u7684\u7684\u7684\u7684\u7684\u7684\u7684\u7684\u7684\u7684\u7684\u7684\u7684\u7684\u7684\u7684\u7684\u7684\u7684\u7684\u7684\"\u7684\u7684\u7684\u7684\u7684\u7684\u7684\u7684\u7684\u7684\u7684\u7684\u7684\u7684\u7684\u7684\u7684\u7684\u7684\u7684\u7684\u7684\u7684\"\u7684\u7684\u7684\u7684\u7684\u7684\u7684\"\u7684\"\u7684\"\u7684\"\u7684\"\u7684\"\u7684\u7684\"\u7684\"\u7684\u7684\"\u7684\"\u7684\"\u7684"
           }
         }
       ]
@@ -649,13 +649,13 @@
       "engine": "vllm",
       "model": "qwen3-4b-vllm",
       "mode": "ai_tinkering",
-      "kv_quant": "auto (quant=bitsandbytes, cpu_offload_gb=6.5)  [kv:none \u2014 turboquant_kv.json not present for Qwen3 4B]",
+      "kv_quant": "turboquant35 (quant=bitsandbytes, cpu_offload_gb=6.5)",
       "is_data_point": false,
-      "started": "2026-04-18T18:23:22",
-      "finished": "2026-04-18T18:26:58",
-      "duration_s": 216.093,
+      "started": "2026-04-19T14:10:05",
+      "finished": "2026-04-19T14:18:34",
+      "duration_s": 508.633,
       "passed": true,
-      "pass_count": 5,
+      "pass_count": 6,
       "fail_count": 0,
       "steps": [
         {
@@ -678,7 +678,7 @@
           "name": "observation_appended",
           "passed": true,
           "duration_s": 0.0,
-          "details": "hist_len=5 / hist_before=2 / obs_count=1 / obs_head=Observation:\nsecret_word=ALPHACHARLIE-329425010f50\n",
+          "details": "hist_len=5 / hist_before=2 / obs_count=1 / obs_head=Observation:\nsecret_word=ALPHACHARLIE-a893599e62fd\n",
           "metrics": {
             "observation_turns": 1
           }
@@ -696,13 +696,20 @@
         {
           "name": "secret_word_in_real_followup",
           "passed": true,
-          "duration_s": 216.0925,
-          "details": "secret=ALPHACHARLIE-329425010f50 | found_in_final=True | final_len=1159 | final_head=<think> Okay, the user asked me to read the fixture, and I used the tq-file-read tool to get the content. The observation shows that the secret word is \"ALPHACHARLIE-329425010f50\". Now, I need to figure out what the next step is. The user m",
+          "duration_s": 508.6335,
+          "details": "secret=ALPHACHARLIE-a893599e62fd | found_in_final=True | final_len=444 | final_head=<think>      </think>    The secret word is is a\u660e\u6708\u5b9d\u76f8\u4f3c\u7a7a\u660e\uff0c\u4f46\u6839\u636e\u63d0\u4f9b\u7684\u4fe1\u606f\uff0c`\u7684\u7684\u7684\u89c2\u5bdf\u662f\u201c\u79d8\u5bc6\u8bcd\u201d\u4e3a \"ALPHACHARLIE-a8935999e62fd\"\u3002\u4e0d\u8fc7\uff0c\u8fd9\u4f3c\u4e4e\u4e0e\u5b9e\u9645\u7684\u201c\u79d8\u5bc6\u8bcd\u201d\u4e0d\u7b26\uff0c\u56e0\u4e3a\u5b9e\u9645\u7684\u201c\u79d8\u5bc6\u8bcd\u201d\u662f \"ALPHACHARLIE-a893599e62fd\"\u3002\u53ef\u80fd\u6709\u62fc\u5199\u9519\u8bef\u6216\u8005\u3002  \u4e0d\u8fc7\uff0c\u6839\u636e\u6839\u636e\u63d0\u4f9b\u7684\u201c\u79d8\u5bc6\u8bcd\u201d\u662f \"ALPHACHARLIE-a893599e62fd\"\uff0c\u90a3\u4e48\u7b54\u6848\u662f\uff1a  The secre",
           "metrics": {
             "secret_found": true,
-            "secret_word": "ALPHACHARLIE-329425010f50",
-            "final_text_chars": 1159
+            "secret_word": "ALPHACHARLIE-a893599e62fd",
+            "final_text_chars": 444
           }
+        },
+        {
+          "name": "turboquant_kv_active",
+          "passed": true,
+          "duration_s": 0.0,
+          "details": "tune.kv_cache_dtype=turboquant35",
+          "metrics": {}
         }
       ]
     },
@@ -712,13 +719,13 @@
       "engine": "vllm",
       "model": "qwen3-4b-vllm",
       "mode": "unrestricted",
-      "kv_quant": "auto (quant=bitsandbytes, cpu_offload_gb=6.5)  [kv:none \u2014 turboquant_kv.json not present for Qwen3 4B]",
+      "kv_quant": "turboquant35 (quant=bitsandbytes, cpu_offload_gb=6.5)",
       "is_data_point": false,
-      "started": "2026-04-18T18:26:58",
-      "finished": "2026-04-18T18:30:48",
-      "duration_s": 229.863,
+      "started": "2026-04-19T14:18:34",
+      "finished": "2026-04-19T14:24:34",
+      "duration_s": 359.633,
       "passed": true,
-      "pass_count": 5,
+      "pass_count": 6,
       "fail_count": 0,
       "steps": [
         {
@@ -739,7 +746,7 @@
           "name": "observation_carries_secret",
           "passed": true,
           "duration_s": 0.0,
-          "details": "obs_head=Observation:\nsecret_word=ALPHACHARLIE-c1b898410475\n",
+          "details": "obs_head=Observation:\nsecret_word=ALPHACHARLIE-c37aff72c685\n",
           "metrics": {}
         },
         {
@@ -752,12 +759,19 @@
         {
           "name": "secret_word_in_real_followup",
           "passed": true,
-          "duration_s": 229.8634,
-          "details": "secret=ALPHACHARLIE-c1b898410475 / found_in_final=True / final_head=<think> Okay, the user asked me to read a file, and I did that using the tq-file-read action. The observation from the file is that the secret_word is set to \"ALPHACHARLIE-c1b898410475\". Now, I need to figure out what to do next.  First, I ",
+          "duration_s": 359.6326,
+          "details": "secret=ALPHACHARLIE-c37aff72c685 / found_in_final=True / final_head=<think> <think>     </think>        The secret word is is the secret word.. The secret word is \"AL\u6cd5CHAR\"\u5949\" $\"char\" and the secret word is is \"ALPHACHARL\" and the secret word is is \"AL\u6cd5CHAR\" and the \"char\" and the secret word is is \"ALPHCHAR",
           "metrics": {
             "secret_found": true,
-            "secret_word": "ALPHACHARLIE-c1b898410475"
+            "secret_word": "ALPHACHARLIE-c37aff72c685"
           }
+        },
+        {
+          "name": "turboquant_kv_active",
+          "passed": true,
+          "duration_s": 0.0,
+          "details": "tune.kv_cache_dtype=turboquant35",
+          "metrics": {}
         }
       ]
     }

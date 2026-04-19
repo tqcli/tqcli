@@ -100,6 +100,37 @@ class VllmBackend(InferenceEngine):
 
                 if is_turboquant_kv_cache(self._kv_cache_dtype):
                     params["enable_turboquant"] = True
+                    # Auto-generate turboquant_kv.json if missing. The fork's
+                    # discover_turboquant_metadata_path() only looks at the
+                    # model directory; without metadata it raises ValueError
+                    # during attention init.
+                    from pathlib import Path
+
+                    model_dir = Path(model_path)
+                    if model_dir.is_dir() and not (model_dir / "turboquant_kv.json").is_file():
+                        from tqcli.core.kv_metadata_generator import (
+                            check_calibration_preconditions,
+                            generate_turboquant_metadata,
+                        )
+
+                        ok, reason = check_calibration_preconditions(
+                            model_dir, self._kv_cache_dtype
+                        )
+                        if ok:
+                            print(
+                                f"[vllm] TurboQuant metadata missing for {model_dir.name}; "
+                                f"running activation calibration (this happens once).",
+                                flush=True,
+                            )
+                            generate_turboquant_metadata(
+                                model_dir=model_dir,
+                                kv_cache_dtype=self._kv_cache_dtype,
+                            )
+                        else:
+                            raise RuntimeError(
+                                f"Cannot load {model_dir.name} with "
+                                f"kv_cache_dtype={self._kv_cache_dtype}: {reason}"
+                            )
             except ImportError:
                 pass
 
