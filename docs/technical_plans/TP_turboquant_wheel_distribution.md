@@ -1,11 +1,11 @@
 # Technical Implementation Plan: TurboQuant Fork Wheel Distribution
 
-Companion to `docs/prd/PRD_turboquant_wheel_distribution.md`. Target release: **tqCLI 0.6.0**.
+Companion to `docs/prd/PRD_turboquant_wheel_distribution.md`. Target release: **tqCLI 0.7.0**.
 
 ## Overview
-Ship the two TurboQuant forks (`ithllc/llama-cpp-turboquant`, `ithllc/vllm-turboquant`) as installable Python wheels under renamed PyPI packages (`llama-cpp-python-turboquant`, `vllm-turboquant`), wire them into `tqcli` via `[llama-tq]` / `[vllm-tq]` extras, add a runtime Engine Auditor that detects fork-vs-upstream mismatches, and cut the 0.6.0 release with a GitHub Sponsors link — so the LinkedIn launch lands with a one-command install that actually delivers TurboQuant KV compression.
+Ship the two TurboQuant forks (`ithllc/llama-cpp-turboquant`, `ithllc/vllm-turboquant`) as installable Python wheels under renamed PyPI packages (`llama-cpp-python-turboquant`, `vllm-turboquant`), wire them into `tqcli` via `[llama-tq]` / `[vllm-tq]` extras, add a runtime Engine Auditor that detects fork-vs-upstream mismatches, and cut the 0.7.0 release with a GitHub Sponsors link — so the LinkedIn launch lands with a one-command install that actually delivers TurboQuant KV compression.
 
-**Co-release context (added 2026-04-18):** `0.6.0` already has the **tri-state agentic autonomy feature merged on `main`** in commit `c0457fd` (tqcli/core/agent_orchestrator.py + agent_tools.py + --ai-tinkering flag + 8 unit tests + Gemma 4 integration report). `pyproject.toml` and `tqcli/__init__.py` are already bumped to `0.6.0`; `CHANGELOG.md` already has a `[0.6.0] - 2026-04-18` block. This TP's Workstream C must **extend** the existing release surface, not recreate it.
+**Release context (updated 2026-04-19):** 0.6.0 shipped agent modes (commit `c0457fd`); 0.6.1 shipped the Qwen 3 KV metadata calibrator; 0.6.2 shipped Llama 3 / Mistral / Phi-3 wrappers. Current tip is `0.6.2`. Wheel distribution is now a standalone **0.7.0** milestone. This TP's Workstream C bumps version from 0.6.2 to 0.7.0 and adds a new `[0.7.0]` CHANGELOG block at the top.
 
 ## Architecture
 
@@ -13,17 +13,19 @@ Three independent workstreams can run in parallel (use `project-manager` for wor
 
 - **Workstream A — `llama-cpp-python-turboquant` wheels**: rename, add `TURBOQUANT_BUILD` sentinel, set up `cibuildwheel` on GitHub Actions with PyPI Trusted Publishing, tag and release.
 - **Workstream B — `vllm-turboquant` wheel**: rename, add `TURBOQUANT_ENABLED` sentinel, document the WSL2 one-off build, cut the first GitHub Release with the Gemma 4 + BNB_INT4 + CPU offload + turboquant35 commit pinned.
-- **Workstream C — tqCLI 0.6.0 integration**: swap `pyproject.toml` extras, implement Engine Auditor, update docs, bump version, add `FUNDING.yml`.
+- **Workstream C — tqCLI 0.7.0 integration**: swap `pyproject.toml` extras, implement Engine Auditor, update docs, bump version, add `FUNDING.yml`.
 
 ```mermaid
 flowchart LR
-    A[Workstream A<br/>llama-cpp fork wheels on PyPI] --> D[tqCLI 0.6.0 release]
+    A[Workstream A<br/>llama-cpp fork wheels on PyPI] --> D[tqCLI 0.7.0 release]
     B[Workstream B<br/>vllm fork wheel on GH Releases] --> D
     C[Workstream C<br/>tqCLI extras + Engine Auditor + docs] --> D
     D --> L[LinkedIn launch]
 ```
 
 Workstreams A and B produce artifacts consumed by Workstream C's `pyproject.toml` version pins — so C's final merge depends on both A and B shipping first, but C's implementation work (Engine Auditor, docs) can land in a draft PR in parallel.
+
+**Execution order (2026-04-19 audit):** **B → A → C**. B is the most complex build (vLLM compile, 16-32 GB RAM, one-off WSL2), needs to stabilize first. A (cibuildwheel matrix) is mechanical once the fork has the sentinel + rename. C is the final integration.
 
 ## Phase 1: Package Renames and Fork Sentinels (Workstreams A + B in parallel)
 
@@ -80,7 +82,7 @@ Automated, tag-triggered wheel builds across the full cross-platform matrix on f
 **A2. Wheel matrix.**
 1. Create `.github/workflows/wheels.yml` in the llama fork using `pypa/cibuildwheel@v2.19`.
 2. Matrix (free runners only):
-   - `ubuntu-latest` × CPython 3.10/3.11/3.12 × `{CPU, CUDA 12.1, CUDA 12.8}`
+   - `ubuntu-latest` × CPython 3.10/3.11/3.12 × `{CPU, CUDA 12.8}` (CUDA 12.1 dropped — TurboQuant kernels require 12.8+)
    - `windows-latest` × CPython 3.10/3.11/3.12 × `{CPU, CUDA 12.8}`
    - `macos-14` (arm64) × CPython 3.10/3.11/3.12 × `{Metal}`
    - `macos-13` (x86_64) × CPython 3.10/3.11/3.12 × `{CPU}`
@@ -118,8 +120,9 @@ Produce a single, reproducible `vllm-turboquant` wheel that captures the exact c
 ### Implementation Steps
 
 **B2. Pin the golden commit.**
-1. Identify the commit SHA on `ithllc/vllm-turboquant` whose integration test log produced the 2026-04-17 Gemma 4 E2B run documented in `tests/integration_reports/turboquant_kv_comparison_report.md` (Section C.2) — `cpu_offload_gb=9.9`, `kv_cache_dtype=turboquant35`, 28 TurboQuant layers of 35.
-2. Tag it `v0.6.0-tq1` on the fork.
+1. Identify the commit SHA on `ithllc/vllm-turboquant` AFTER Issue #22's four-patch page-size-unification fix landed (see `patches/vllm-turboquant/issue_22_page_size_fix.md` for patch bodies). The pre-patch 2026-04-17 run is stale and reproduces Issue #22's head_dim mismatch; use a post-patch commit.
+2. Verify the chosen SHA runs both: (a) Gemma 4 E2B + BNB_INT4 + CPU offload + turboquant35 (Section C.2 of the comparison report), AND (b) Qwen 3 4B + calibrated `turboquant_kv.json` (the 0.6.1 path). Both must be green.
+3. Tag it `v0.7.0-tq1` on the fork.
 
 **B3. WSL2 build script** (`scripts/build_wheel_wsl2.sh` in the vllm fork):
 ```bash
@@ -142,12 +145,12 @@ sha256sum dist/*.whl > dist/SHA256SUMS
 2. Collect `dist/*.whl` + `SHA256SUMS`.
 
 **B5. GitHub Release.**
-1. `gh release create v0.6.0-tq1 --repo ithllc/vllm-turboquant --title "vllm-turboquant 0.6.0-tq1 (Gemma 4 + BNB_INT4 + CPU offload + turboquant35)"`.
+1. `gh release create v0.7.0-tq1 --repo ithllc/vllm-turboquant --title "vllm-turboquant 0.7.0-tq1 (Gemma 4 + BNB_INT4 + CPU offload + turboquant35 + Qwen 3 calibrator)"`.
 2. Attach the three `.whl` files and `SHA256SUMS`.
 3. Release body: paste the Section C.2 integration numbers verbatim as the provenance story.
 
 **B6. Install URL.**
-1. Confirm that `pip install vllm-turboquant --find-links https://github.com/ithllc/vllm-turboquant/releases/expanded_assets/v0.6.0-tq1` resolves on a clean CUDA 12.8 Ubuntu box.
+1. Confirm that `pip install vllm-turboquant --find-links https://github.com/ithllc/vllm-turboquant/releases/expanded_assets/v0.7.0-tq1` resolves on a clean CUDA 12.8 Ubuntu box.
 2. Document this as the exact invocation users run.
 
 ### Files
@@ -175,14 +178,14 @@ Replace the upstream-pulling extras with TurboQuant-only extras, bump the versio
 
 ```toml
 [project]
-version = "0.6.0"
+version = "0.7.0"
 
 [project.optional-dependencies]
 llama-tq = [
     "llama-cpp-python-turboquant>=0.3.0",
 ]
 vllm-tq = [
-    "vllm-turboquant==0.6.0.post20260417",  # pin exact Gemma 4 + BNB_INT4 + turboquant35 build
+    "vllm-turboquant==0.7.0.postYYYYMMDD",  # pin commit AFTER Issue #22 four-patch fix; YYYYMMDD = pinned commit date
     "bitsandbytes>=0.43.0",
     "accelerate>=0.30.0",
 ]
@@ -193,8 +196,8 @@ dev = ["pytest>=7.0", "ruff>=0.4"]
 Delete the old `llama` and `vllm` keys entirely.
 
 **C2. Version bump.**
-1. `pyproject.toml`: already `version = "0.6.0"` — no change. **Do not revert.**
-2. `tqcli/__init__.py`: already `__version__ = "0.6.0"` — no change.
+1. `pyproject.toml`: bump `version` from `0.6.2` to `0.7.0`.
+2. `tqcli/__init__.py`: bump fallback `__version__` from `0.6.2` to `0.7.0`.
 3. `tqcli/cli.py`: confirm `--version` flag reads from `__version__`.
 
 **C2a. Dependency harmony check (new, added per gemini review 2026-04-18).** Before declaring Workstream C done, on a fresh venv:
@@ -216,7 +219,7 @@ Verify that the vllm-turboquant wheel's pinned `torch` / `numpy` / `pydantic` do
 ### Verification
 - On a fresh venv: `pip install -e ".[vllm-tq]"` pulls `vllm-turboquant` (via `--find-links` configured in user docs) and `import vllm; vllm.TURBOQUANT_ENABLED` is `True`.
 - `pip install -e ".[llama-tq]"` pulls from PyPI directly, no `--find-links` needed.
-- `tqcli --version` prints `tqcli, version 0.6.0`.
+- `tqcli --version` prints `tqcli, version 0.7.0`.
 
 ---
 
@@ -315,7 +318,7 @@ def run_audit(system: SystemInfo) -> list[EngineAuditResult]:
 
 ### Dependencies
 - Phase 1 (sentinels must exist in the forks for the detection to work).
-- Phase 4 (version bump to reference 0.6.0 in install hints).
+- Phase 4 (version bump to reference 0.7.0 in install hints).
 
 ### Verification
 - Manual: on a WSL2 box with upstream `vllm` installed on an Ampere GPU, `tqcli system info` prints the yellow panel with the correct pip command to stderr.
@@ -327,7 +330,7 @@ def run_audit(system: SystemInfo) -> list[EngineAuditResult]:
 ## Phase 6: Documentation, Sponsors, and CHANGELOG (Workstream C)
 
 ### Objectives
-Update every user-facing doc to the new install path, add the GitHub Sponsors config, and write the 0.6.0 changelog entry.
+Update every user-facing doc to the new install path, add the GitHub Sponsors config, and write the 0.7.0 changelog entry.
 
 ### Implementation Steps
 
@@ -337,7 +340,7 @@ github: [ithllc]
 ```
 
 **C8. `README.md` edits:**
-- Add "What's new in 0.6.0" section at the top mirroring the 0.5.0 style.
+- Add "What's new in 0.7.0" section at the top mirroring the 0.6.x style.
 - Replace every `pip install -e ".[llama]"` / `[vllm]` / `[all]` with the `-tq` variants.
 - Add a note for vLLM: `--find-links https://github.com/ithllc/vllm-turboquant/releases/latest`.
 - Add a "Supported hardware for TurboQuant KV" mini-table (already in architecture doc; duplicate just the install-decision subset here).
@@ -359,19 +362,16 @@ github: [ithllc]
 **C12. `docs/contributing/RELEASING_WHEELS.md` (new):**
 - Step-by-step maintainer runbook for cutting a new `vllm-turboquant` wheel from WSL2 (mirrors Phase 3, for future releases).
 
-**C13. `CHANGELOG.md` — EXTEND the existing `[0.6.0]` block (do not replace).** The block already contains the tri-state agentic autonomy entries (commit `c0457fd`, 2026-04-18). APPEND the wheel-distribution entries under the same headers so the 0.6.0 release notes present one coherent story:
+**C13. `CHANGELOG.md` — ADD a new `[0.7.0]` block at the top** (above the existing `[0.6.2]` block). Do not touch the 0.6.0 / 0.6.1 / 0.6.2 blocks — they're shipped history.
 
 ```markdown
-## [0.6.0] - 2026-04-18
+## [0.7.0] - YYYY-MM-DD
 
 ### Added
-- **Tri-state agentic autonomy** — already present, DO NOT TOUCH.
-- **Core agent tools** — already present, DO NOT TOUCH.
-- **Agent tests** — already present, DO NOT TOUCH.
 - **TurboQuant fork wheels** — `llama-cpp-python-turboquant` on PyPI (Linux/macOS/Windows,
-  CPU + CUDA + Metal), `vllm-turboquant` as a GitHub Release asset
-  (Linux x86_64 + CUDA 12.8). Pinned to the 2026-04-17 Gemma 4 + BNB_INT4 +
-  CPU offload + turboquant35 commit.
+  CPU + CUDA 12.8 + Metal), `vllm-turboquant` as a GitHub Release asset
+  (Linux x86_64 + CUDA 12.8). Pinned to the commit AFTER Issue #22's
+  four-patch page-size fix — see `patches/vllm-turboquant/issue_22_page_size_fix.md`.
 - **Engine Auditor** (`tqcli/core/engine_auditor.py`) — detects fork-vs-upstream
   on startup, prints a high-visibility panel when the GPU supports TurboQuant
   but an upstream engine is installed. Flushes before the agent orchestrator's
@@ -379,10 +379,9 @@ github: [ithllc]
 - **GitHub Sponsors** — `.github/FUNDING.yml`.
 
 ### Changed
-- `InteractiveSession` accepts `agent_mode` — already present, DO NOT TOUCH.
-- `FileReadTool.safety` — already present, DO NOT TOUCH.
 - `pyproject.toml` extras replaced: `[llama]` / `[vllm]` / `[all]` → `[llama-tq]` /
-  `[vllm-tq]` / `[all]`. The old names no longer install anything.
+  `[vllm-tq]` / `[all]`. The old names no longer install anything. macOS users
+  must install `[llama-tq]` directly — `[all]` has no Darwin wheel path for vLLM.
 
 ### Removed
 - Upstream `llama-cpp-python` and `vllm` dependency paths. tqCLI now ships
@@ -445,8 +444,8 @@ Prove the full story works end-to-end before tagging and announcing.
 **V2. Regression pass.** Run the full existing integration suite from `tests/integration_reports/turboquant_kv_comparison_report.md` on the maintainer's WSL2 box. All 7/7 tests must stay green, specifically test_7 (Gemma 4 E2B + BNB_INT4 + CPU offload + turboquant35).
 
 **V3. Tag and release.**
-1. `git tag v0.6.0 && git push --tags` on the tqCLI main branch.
-2. `gh release create v0.6.0` on ithllc/tqCLI with the CHANGELOG 0.6.0 body. The release body MUST co-advertise: (a) `--ai-tinkering` + `--stop-trying-to-control-everything-and-just-let-go` agent modes, (b) `llama-cpp-python-turboquant` PyPI install, (c) `vllm-turboquant` GitHub-Releases install, with the exact one-liner for each. One release, one LinkedIn post.
+1. `git tag v0.7.0 && git push --tags` on the tqCLI main branch.
+2. `gh release create v0.7.0` on ithllc/tqCLI with the CHANGELOG 0.7.0 body. The release body leads with: (a) `llama-cpp-python-turboquant` PyPI install one-liner, (b) `vllm-turboquant` GitHub-Releases install one-liner. One release, one LinkedIn post.
 3. Publish `llama-cpp-python-turboquant` via the Phase 2 workflow (tag `v0.3.0-tq1` on the fork).
 4. Verify `vllm-turboquant` Phase 3 release is attached and discoverable.
 
@@ -479,7 +478,7 @@ All five platform matrix cells in V1 return exit code 0 with the expected TurboQ
 
 ## Rollback Plan
 
-If the 0.6.0 release breaks installs in the wild:
-1. Yank `tqcli==0.6.0` from PyPI (`twine upload --skip-existing` doesn't help; use PyPI UI "yank" button).
-2. Tag a `0.6.1` hotfix that restores the `[llama]` / `[vllm]` extras as aliases for `[llama-tq]` / `[vllm-tq]` so existing copy-pasted README snippets still work.
+If the 0.7.0 release breaks installs in the wild:
+1. Yank `tqcli==0.7.0` from PyPI (`twine upload --skip-existing` doesn't help; use PyPI UI "yank" button).
+2. Tag a `0.7.1` hotfix that restores the `[llama]` / `[vllm]` extras as aliases for `[llama-tq]` / `[vllm-tq]` so existing copy-pasted README snippets still work.
 3. Do not delete the GitHub Release for `vllm-turboquant` — users mid-download need stability.
