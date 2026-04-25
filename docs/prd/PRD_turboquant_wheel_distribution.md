@@ -1,5 +1,22 @@
 # Product Requirements Document: TurboQuant Fork Wheel Distribution
 
+> **Status update 2026-04-25:** Sections 0.A and 0.B of the playbook
+> (`docs/prompts/ship_turboquant_wheels.md`) are complete:
+> - GitHub org `tqcli` is live; repos transferred from `ithllc/`.
+> - PyPI distribution name for the umbrella package is **`turboquant-cli`** (not
+>   `tqcli`, which is taken by an unrelated project, TranQuant). Import name
+>   remains `tqcli` (dateutil pattern). All `pip install tqcli[...]` examples
+>   below should be read as `pip install turboquant-cli[...]` until Workstream C
+>   step 1 performs the global rename.
+> - License switched from MIT to **Apache-2.0** for the umbrella `tqcli`
+>   package. Forks retain their distinct upstream licenses (see Section 3
+>   Constraints — `License (forks)` line). New artifacts at repo root: `LICENSE`,
+>   `NOTICE`, `CITATION.cff`.
+> - 0.0.0 placeholder published live at https://pypi.org/project/turboquant-cli/.
+> - PyPI Trusted Publishing via OIDC is wired up at
+>   `tqcli/tqcli:.github/workflows/publish-pypi.yml` — same pattern required for
+>   `llama-cpp-python-turboquant` per Section 0.C.
+
 ## 1. Introduction
 **Product/Feature Name:** TurboQuant Fork Wheel Distribution (tqCLI 0.7.0)
 
@@ -44,7 +61,8 @@
 ### Constraints
 - **Solo-dev budget: $0.** Must use only free GitHub Actions minutes (unlimited on public repos with standard runners), free PyPI hosting, free GitHub Releases asset hosting, and the maintainer's own WSL2 workstation for the one-off vLLM build.
 - **No paid large runners, no paid cloud GPU time.** If the free 4-vCPU / 16 GB `ubuntu-latest` runner OOMs on the `llama-cpp-python-turboquant` CUDA build, we accept longer build times (ccache, incremental builds, `MAX_JOBS=2`) rather than a paid tier.
-- **License: MIT** on both forks — maintained from upstream. Both forks' LICENSE files must credit upstream `llama-cpp-python` (MIT, Andrei Betlen) and `vllm` (Apache 2.0 — so `vllm-turboquant` carries Apache 2.0 and preserves NOTICE).
+- **License (forks):** inherited from upstream. `llama-cpp-python-turboquant` is MIT (upstream `abetlen/llama-cpp-python`, Andrei Betlen); `vllm-turboquant` is Apache 2.0 (upstream `vllm-project/vllm`, preserve NOTICE). Both forks' LICENSE files must credit their respective upstreams.
+- **License (umbrella `tqcli`):** Apache-2.0 (switched from MIT on 2026-04-25 — see status preamble at top of doc). Required artifacts at repo root: `LICENSE` (canonical Apache-2.0), `NOTICE` (research attribution for TurboQuant / PolarQuant / QJL + independent-implementation disclaimer + upstream-fork license declarations), `CITATION.cff` (GitHub "Cite this repository" rendering). Workstream C must preserve and update these artifacts on the 0.7.0 release.
 - **No PyPI squatting.** The renamed packages make clear in their PyPI description that they are forks, not the canonical `llama-cpp-python` / `vllm`.
 
 ## 4. Key Features

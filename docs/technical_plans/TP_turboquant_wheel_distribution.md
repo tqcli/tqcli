@@ -2,6 +2,26 @@
 
 Companion to `docs/prd/PRD_turboquant_wheel_distribution.md`. Target release: **tqCLI 0.7.0**.
 
+> **Status update 2026-04-25:** Sections 0.A and 0.B of the playbook
+> (`docs/prompts/ship_turboquant_wheels.md`) are complete:
+> - GitHub org `tqcli` is live; repos transferred from `ithllc/`.
+> - PyPI distribution name for the umbrella package is **`turboquant-cli`** (not
+>   `tqcli`, which is taken by an unrelated project). Import name remains `tqcli`.
+> - License switched from MIT to **Apache-2.0** for the umbrella `tqcli` package
+>   (forks retain their inherited licenses: `llama-cpp-turboquant` is MIT,
+>   `vllm-turboquant` is Apache-2.0). New artifacts at repo root: `LICENSE`,
+>   `NOTICE`, `CITATION.cff`.
+> - 0.0.0 placeholder published live at https://pypi.org/project/turboquant-cli/.
+> - PyPI Trusted Publishing is wired up at `tqcli/tqcli:.github/workflows/publish-pypi.yml`
+>   via OIDC (no API tokens). Same pattern is required for Phase 2 / Workstream A
+>   on the `llama-cpp-turboquant` fork.
+>
+> Below this preamble, references to `pip install tqcli[...]` and to
+> `ithllc/<repo>` are stale until Workstream C step 1 performs the global rename.
+> The Phase 2 / A3 instructions (Trusted Publishing setup) should follow the
+> tested `publish-pypi.yml` pattern; see the `tq-pypi` skill at
+> `.claude/skills/tq-pypi/`.
+
 ## Overview
 Ship the two TurboQuant forks (`ithllc/llama-cpp-turboquant`, `ithllc/vllm-turboquant`) as installable Python wheels under renamed PyPI packages (`llama-cpp-python-turboquant`, `vllm-turboquant`), wire them into `tqcli` via `[llama-tq]` / `[vllm-tq]` extras, add a runtime Engine Auditor that detects fork-vs-upstream mismatches, and cut the 0.7.0 release with a GitHub Sponsors link — so the LinkedIn launch lands with a one-command install that actually delivers TurboQuant KV compression.
 
