@@ -1,0 +1,154 @@
+name: Build wheels
+
+# Tag-triggered cibuildwheel matrix for llama-cpp-python-turboquant.
+#
+# Trusted Publishing (PyPI) is configured against:
+#   project:  llama-cpp-python-turboquant
+#   owner:    tqcli
+#   repo:     llama-cpp-python-turboquant   (note: NOT llama-cpp-turboquant)
+#   workflow: wheels.yml
+#   environment: (none — leave blank to match the form template used in 0.B)
+#
+# The publish job uses pypa/gh-action-pypi-publish@release/v1 with NO
+# `with.password:` argument; OIDC handles auth.
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch: {}
+
+jobs:
+  build_wheels:
+    name: ${{ matrix.os }} cp${{ matrix.python }} ${{ matrix.variant }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # ---------- Linux x86_64 ----------
+          - { os: ubuntu-latest,  python: "310", variant: cpu  }
+          - { os: ubuntu-latest,  python: "311", variant: cpu  }
+          - { os: ubuntu-latest,  python: "312", variant: cpu  }
+          - { os: ubuntu-latest,  python: "310", variant: cuda }
+          - { os: ubuntu-latest,  python: "311", variant: cuda }
+          - { os: ubuntu-latest,  python: "312", variant: cuda }
+          # ---------- Windows x86_64 ----------
+          - { os: windows-latest, python: "310", variant: cpu  }
+          - { os: windows-latest, python: "311", variant: cpu  }
+          - { os: windows-latest, python: "312", variant: cpu  }
+          - { os: windows-latest, python: "310", variant: cuda }
+          - { os: windows-latest, python: "311", variant: cuda }
+          - { os: windows-latest, python: "312", variant: cuda }
+          # ---------- macOS arm64 (Metal) ----------
+          - { os: macos-14, python: "310", variant: metal }
+          - { os: macos-14, python: "311", variant: metal }
+          - { os: macos-14, python: "312", variant: metal }
+          # ---------- macOS x86_64 (CPU) ----------
+          - { os: macos-13, python: "310", variant: cpu }
+          - { os: macos-13, python: "311", variant: cpu }
+          - { os: macos-13, python: "312", variant: cpu }
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Set up ccache (Linux/Windows)
+        if: runner.os != 'macOS'
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: ${{ matrix.os }}-cp${{ matrix.python }}-${{ matrix.variant }}
+
+      - name: Install CUDA 12.8 toolkit (Linux)
+        if: matrix.variant == 'cuda' && runner.os == 'Linux'
+        uses: Jimver/cuda-toolkit@v0.2.16
+        with:
+          cuda: "12.8.0"
+          method: "network"
+          sub-packages: '["nvcc","cudart","cublas","cublas_dev","curand","curand_dev","cusparse","cusparse_dev","cusolver","cusolver_dev"]'
+
+      - name: Install CUDA 12.8 toolkit (Windows)
+        if: matrix.variant == 'cuda' && runner.os == 'Windows'
+        uses: Jimver/cuda-toolkit@v0.2.16
+        with:
+          cuda: "12.8.0"
+          method: "network"
+
+      - name: Build wheel (cibuildwheel)
+        uses: pypa/cibuildwheel@v2.19
+        env:
+          CIBW_BUILD: "cp${{ matrix.python }}-*"
+          CIBW_SKIP: "*-musllinux* *-manylinux_i686 pp*"
+          CIBW_ARCHS_LINUX: x86_64
+          CIBW_ARCHS_WINDOWS: AMD64
+          CIBW_ARCHS_MACOS: ${{ matrix.os == 'macos-14' && 'arm64' || 'x86_64' }}
+          CIBW_ENVIRONMENT_LINUX: >-
+            CMAKE_ARGS=${{ matrix.variant == 'cuda' && '-DGGML_CUDA=on -DCMAKE_CUDA_ARCHITECTURES=80;86;89;90' || '' }}
+            MAX_JOBS=2
+          CIBW_ENVIRONMENT_WINDOWS: >-
+            CMAKE_ARGS=${{ matrix.variant == 'cuda' && '-DGGML_CUDA=on -DCMAKE_CUDA_ARCHITECTURES=80;86;89;90' || '' }}
+            MAX_JOBS=2
+          CIBW_ENVIRONMENT_MACOS: >-
+            CMAKE_ARGS=${{ matrix.variant == 'metal' && '-DGGML_METAL=on -DGGML_METAL_EMBED_LIBRARY=ON' || '' }}
+            MAX_JOBS=2
+          CIBW_BEFORE_BUILD: pip install --upgrade pip cmake ninja scikit-build-core
+          # Smoke-test the sentinel inside cibuildwheel's isolated test env.
+          CIBW_TEST_COMMAND: >-
+            python -c "import llama_cpp; assert llama_cpp.TURBOQUANT_BUILD is True, 'sentinel missing'; assert llama_cpp.TURBOQUANT_KV_TYPES == ('turbo2','turbo3','turbo4'), 'KV types wrong'; print('sentinel OK')"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheels-${{ matrix.os }}-cp${{ matrix.python }}-${{ matrix.variant }}
+          path: wheelhouse/*.whl
+          if-no-files-found: error
+
+  build_sdist:
+    name: sdist
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install build
+      - run: python -m build --sdist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sdist
+          path: dist/*.tar.gz
+          if-no-files-found: error
+
+  github_release:
+    name: Attach wheels to GitHub Release
+    needs: [build_wheels, build_sdist]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true
+
+  publish:
+    name: Publish to PyPI (Trusted Publishing)
+    needs: [build_wheels, build_sdist]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        # No `with.password:` — OIDC handles auth via Trusted Publishing.
