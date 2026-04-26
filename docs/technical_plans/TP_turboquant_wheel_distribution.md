@@ -2,6 +2,25 @@
 
 Companion to `docs/prd/PRD_turboquant_wheel_distribution.md`. Target release: **tqCLI 0.7.0**.
 
+> **Status update 2026-04-26 (afternoon):** First `/project-manager` run completed; release PAUSED at prep phase. Findings:
+> - **Phase 1 / A1 — BLOCKED.** Fork-target mismatch (see PRD update). `tqcli/llama-cpp-turboquant` is the C++ engine fork; the Python-bindings fork (`tqcli/llama-cpp-python-turboquant`) does not yet exist. Resolution requires creating the new repo + re-registering PyPI Pending Publisher.
+> - **Phase 1 / B1 — STAGED.** Sentinels (`vllm/__init__.py.snippet`), runtime arch check (`vllm/turboquant_arch_check.py`), build scripts (`scripts/build_wheel_gcp.sh` + `_build_one_wheel.sh`), `docs/RELEASING.md`, release body template, RunPod verification commands all authored. Cross-repo application + golden-commit verification + tag deferred to maintainer.
+> - **Phase 3 — pending.** GCP build (n2-standard-8 sequential, ~30h, ~$12) NOT kicked off. Holding until Workstream A is also resolved per Option-3 cohesive-launch decision.
+> - **Phase 4 / Workstream C — DONE.** All Workstream C deliverables landed in branch `task-3-release-tqcli-1777190346`: engine_auditor + 15 passing tests, pyproject.toml extras, FUNDING.yml, community_verify.sh + workflow, all docs, CHANGELOG, release drafts. Blocked only on the Workstream B post-suffix pin.
+> - **New skills:** `tq-pre-release-verify`, `tq-cross-repo-prep`, `tq-wheel-orchestrator`, `tq-release-conductor` at `.claude/skills/tq-*/`. These encode the lessons from this run and reduce risk on the next launch.
+
+> **Status update 2026-04-26:** Sections 0.C + 0.D of the playbook closed; wheel-naming, GCP build strategy, and verification provider locked:
+> - **0.C complete** — PyPI Pending Publisher registered for `llama-cpp-python-turboquant` (owner `tqcli`, repo `llama-cpp-turboquant`, workflow `wheels.yml`, environment Any). Auto-promotes Pending → Active on first run.
+> - **0.D GCP** — project `tqcli-wheel-build` provisioned against billing account `01124B-E52669-78A9D0`. APIs enabled, $50 budget alert at 50/90/100%, bucket `gs://tqcli-wheel-build/` ready in us-central1. **Build path: sequential single n2-standard-8 VM** (no quota request); six wheels back-to-back, ~30h wall time, ~$12.
+> - **0.D verification** — Vast.ai + Lambda Labs replaced by **RunPod** (`runpodctl`). V6 (sm_121, GB10) stays on the user's owned ASUS Ascent GX10.
+> - **Phase 1 / B1 changes** — fork's `pyproject.toml` `name` is now build-time-templated (set per flavor by `scripts/build_wheel_gcp.sh`). `vllm/__init__.py` adds `TURBOQUANT_BUILD_ARCH` + `TURBOQUANT_BUILD_ARCH_LIST` (also build-time-templated). New module `vllm/turboquant_arch_check.py` exposes `check_arch_compatibility()` — called on first GPU init; raises `RuntimeError` with a clear message if the runtime GPU's compute capability doesn't match the wheel's arch list.
+> - **Phase 3 changes** — single `vllm-turboquant` wheel becomes TWO: `vllm-turboquant` (sm_8.0/8.6/8.9/9.0) and `vllm-turboquant-blackwell` (sm_10.0/12.0/12.1+PTX). Build matrix is now 6 wheels (3 Python × 2 flavors), all sequential on one VM. Each wheel's arch list is narrower than the original single-wheel plan, so per-wheel build time is ~5h.
+> - **Phase 4 / Workstream C changes** — `pyproject.toml` extras must reference both wheel names; `[vllm-tq]` extra resolves to whichever flavor matches the runtime GPU. Engine Auditor reports `TURBOQUANT_BUILD_ARCH` in its `--json` metadata; render_audit_warnings() includes the arch in the human-readable panel when a mismatch is detected.
+> - **CUDA toolkit** — 13.0+ (12.8 cannot compile sm_121).
+> - **`FUNDING.yml`** — `github: ithllc` only. ithllc = Ivey Technology Holdings LLC (user's business); tqCLI is a product of ithllc until spinout.
+>
+> The Phase 1 / Phase 3 / Phase 4 body sections need surgical updates to reflect the split (currently they describe a single `vllm-turboquant` wheel). Use this preamble as authoritative until those edits land.
+
 > **Status update 2026-04-25:** Sections 0.A and 0.B of the playbook
 > (`docs/prompts/ship_turboquant_wheels.md`) are complete:
 > - GitHub org `tqcli` is live; repos transferred from `ithllc/`.

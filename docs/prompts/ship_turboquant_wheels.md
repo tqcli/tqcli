@@ -56,7 +56,9 @@ Outcome:
 - All future `turboquant-cli` versions must come from `tqcli/tqcli:.github/workflows/publish-pypi.yml` via OIDC
 - `pip install turboquant-cli` resolves successfully on a clean venv
 
-### 0.C — Trusted Publishing for `llama-cpp-python-turboquant`
+### 0.C — Trusted Publishing for `llama-cpp-python-turboquant` ✅ DONE 2026-04-26
+
+Pending Publisher registered on PyPI: project `llama-cpp-python-turboquant`, owner `tqcli`, repo `llama-cpp-turboquant`, workflow `wheels.yml`, environment `(Any)`. Will auto-promote Pending → Active on first successful `wheels.yml` run (Workstream A).
 
 Same pattern as 0.B. Use the **`tq-pypi` skill** at `.claude/skills/tq-pypi/` — it encodes the full flow (availability check, Pending Publisher form, OIDC workflow template, failure diagnostics). The `tqcli/tqcli:.github/workflows/publish-pypi.yml` placeholder workflow is the working reference template; rename to `wheels.yml` since this fork uses cibuildwheel (per TP Phase 2 / Workstream A).
 
@@ -80,12 +82,11 @@ Same pattern as 0.B. Use the **`tq-pypi` skill** at `.claude/skills/tq-pypi/` �
 
 **For `vllm-turboquant`:** PyPI publish is currently deferred (per PRD: distributed via GitHub Releases due to wheel-size question). When that resolves in PyPI's favor, use the same Pending Publisher pattern. NEVER use account-wide API tokens — user policy; the `tq-pypi` skill enforces this.
 
-### 0.D — Cloud accounts (pay-as-you-go, no monthly commit)
+### 0.D — Cloud accounts (pay-as-you-go, no monthly commit) ✅ GCP DONE 2026-04-26
 
-1. **GCP** — already have access. Enable Compute Engine API in a project `tqcli-wheel-build`. Set budget alert at $50.
-2. **Vast.ai** — create account at `vast.ai`, add $30 credit. For RTX 4090 + RTX 5090 verification.
-3. **Lambda Labs** — create account at `lambda.ai`, add payment. For B200 verification.
-4. **ASUS Ascent GX10** — already owned (acquired 2026-04-25). Provides on-hand sm_121 (DGX Spark / GB10, Blackwell) verification. No cloud account needed for this cell.
+1. **GCP** ✅ Project `tqcli-wheel-build` provisioned 2026-04-26 against billing account `01124B-E52669-78A9D0` (`IveyTechnologyHoldings_Billing`). APIs enabled: `compute`, `cloudbilling`, `billingbudgets`, `storage`. Bucket `gs://tqcli-wheel-build/` ready in us-central1. $50 budget alert at 50/90/100% of actual spend. **Build strategy: sequential single n2-standard-8 VM** — six wheels built back-to-back (3 Python versions × 2 GPU flavors after the split, see Decision #1), ~30h wall time, ~$12 total. Stays within the default 8-vCPU regional quota; no quota increase needed.
+2. **RunPod** ✅ Account validated 2026-04-26 (balance $500). CLI: `runpodctl` (`github.com/runpod/runpodctl`), supports headless `pod create`. API key stored outside the repo; treat as a secret, never commit. Confirmed-available GPUs (Community Cloud prices, 2026-04-26 GraphQL): RTX 4090 $0.34/hr, RTX 5090 $0.69/hr, B200 $5.98/hr. Total verification compute ~$7.69. Replaces Vast.ai + Lambda Labs.
+3. **ASUS Ascent GX10** — owned (acquired 2026-04-25). Provides on-hand sm_121 (DGX Spark / GB10, Blackwell) verification for V6. RunPod does not carry GB10 — DGX Spark hardware is not in their catalog as of 2026-04-26.
 
 ### 0.E — Community Mac verifiers
 
@@ -148,49 +149,88 @@ Cost: $0 (GitHub Actions free for public repos).
 Do NOT touch tqcli/ or the vllm fork.
 ```
 
-### Workstream B — `vllm-turboquant` wheel on rented GCP
+### Workstream B — `vllm-turboquant` + `vllm-turboquant-blackwell` wheels on GCP (sequential single-VM)
 
 Hand this prompt to Worker B:
 
 ```
 Branch: off `tqcli/vllm-turboquant` main.
 
-Goal: produce one vllm-turboquant wheel per Python 3.10/3.11/3.12 on GCP on-demand; attach to GitHub Release.
+Goal: produce SIX vllm-turboquant wheels (3 Python versions × 2 GPU flavors) sequentially on a single GCP n2-standard-8 VM; attach to GitHub Release.
 
-Arch list: TORCH_CUDA_ARCH_LIST="8.0 8.6 8.9 9.0 10.0 12.0 12.1+PTX"
+Wheel split (locked Decision #1, 2026-04-26):
+- `vllm-turboquant`            — Ampere/Ada/Hopper, TORCH_CUDA_ARCH_LIST="8.0 8.6 8.9 9.0"
+- `vllm-turboquant-blackwell`  — Blackwell DC + consumer + DGX Spark + Rubin hedge, TORCH_CUDA_ARCH_LIST="10.0 12.0 12.1+PTX"
+
 CUDA toolkit: 13.0+ (12.8 cannot compile sm_121).
+
+Build strategy: ONE n2-standard-8 VM (8 vCPUs, no quota request needed), six builds sequentially. Each ~5h, total ~30h wall time, ~$12 compute cost. The build script flips pyproject.toml's name field, TORCH_CUDA_ARCH_LIST env var, and the runtime sentinels per flavor before each `python -m build` invocation.
 
 Steps (read TP Phase 1 B1 + Phase 3):
 
-1. In fork pyproject.toml, rename distribution to `vllm-turboquant`. Preserve `vllm` import name.
+1. In fork pyproject.toml, leave `name` as a build-time-templated field. The build script (step 7) writes either `vllm-turboquant` or `vllm-turboquant-blackwell` before each build. Preserve `vllm` import name in both flavors.
+
 2. Add to vllm/__init__.py:
      TURBOQUANT_ENABLED = True
      TURBOQUANT_KV_DTYPES = ("turboquant25", "turboquant35")
-3. Update fork README.md per TP B1.4. Confirm LICENSE stays Apache 2.0 + NOTICE intact.
-4. Identify golden commit AFTER Issue #22 four-patch page-size fix (see patches/vllm-turboquant/issue_22_page_size_fix.md). Verify with:
+     TURBOQUANT_BUILD_ARCH = ""        # populated at build time: "ampere-ada-hopper" or "blackwell"
+     TURBOQUANT_BUILD_ARCH_LIST = ""   # populated at build time with the literal TORCH_CUDA_ARCH_LIST
+   Build script writes the actual values into __init__.py before `python -m build`.
+
+3. Add vllm/turboquant_arch_check.py with `check_arch_compatibility() -> Optional[str]`:
+     - Detect runtime GPU compute capability via torch.cuda.get_device_capability().
+     - Compare against TURBOQUANT_BUILD_ARCH_LIST.
+     - Return clear error: "This wheel was built for Blackwell GPUs (sm_10.0/12.0/12.1+PTX). Detected your GPU as sm_8.6 (RTX 3090) — install `vllm-turboquant` instead."
+     - Return None if compatible.
+   Engine import path calls this on first GPU init; raises RuntimeError with the above message if mismatched. Goal: hard-fail fast with a clear message instead of silent fallback.
+
+4. Update fork README.md per TP B1.4. Add the install compatibility table:
+   | Your GPU                              | Install command                          |
+   |---------------------------------------|------------------------------------------|
+   | RTX 30/40-series, A100, H100, GH200   | pip install vllm-turboquant              |
+   | RTX 50-series, B100/B200, GB10        | pip install vllm-turboquant-blackwell    |
+   Confirm LICENSE stays Apache 2.0 + NOTICE intact.
+
+5. Identify golden commit AFTER Issue #22 four-patch page-size fix (see patches/vllm-turboquant/issue_22_page_size_fix.md). Verify with:
      - Gemma 4 E2B + BNB_INT4 + CPU offload + turboquant35 (Section C.2 of comparison report)
      - Qwen 3 4B + calibrated turboquant_kv.json (0.6.1 path)
-   Both must be green.
-5. Tag `v0.7.0-tq1` on the fork.
-6. Author scripts/build_wheel_gcp.sh that:
-     - Provisions a GCP n2-standard-16 on-demand VM in us-central1
-     - Installs CUDA 13.0 toolkit
-     - Sets the arch list above, MAX_JOBS=4, NVCC_THREADS=4, VLLM_TARGET_DEVICE=cuda
-     - Runs python -m build --wheel
-     - Pushes the wheel to a GCS bucket `gs://tqcli-wheel-build/0.7.0-tq1/`
-     - Tears down the VM
-   Run it three times in parallel for Python 3.10, 3.11, 3.12 (spawn 3 VMs; ~6 hr each on-demand; cost ~$4.66/VM = ~$14 total).
-7. Measure wheel sizes. If any exceeds 2 GB: STOP. Escalate to user — two paths:
-     (a) LFS-host the wheel (GitHub LFS has 2 GB per-file limit; may also fail)
-     (b) Split into vllm-turboquant + vllm-turboquant-blackwell extras (Ampere/Ada/Hopper vs sm_100/120/121)
-   Do NOT make this call unilaterally.
-8. If sizes are under 2 GB: gh release create v0.7.0-tq1 --repo tqcli/vllm-turboquant with the three .whl files + SHA256SUMS. Release body pastes Section C.2 numbers verbatim.
-9. Document the script path + invocation in fork docs/RELEASING.md.
-10. Confirm: pip install vllm-turboquant --find-links https://github.com/tqcli/vllm-turboquant/releases/expanded_assets/v0.7.0-tq1 resolves on a clean CUDA 13.0 Ubuntu VM.
+   Both must be green BEFORE tagging.
 
-Verification via Vast.ai RTX 4090 (cost ~$0.87 for 3 hr):
-- pip install succeeds; python -c "import vllm; print(vllm.TURBOQUANT_ENABLED)" prints True.
-- tqcli chat --model gemma-4-e2b-it-vllm --engine vllm --kv-quant turbo3 --prompt "Paris?" --json emits Section C.2 metadata.
+6. Tag `v0.7.0-tq1` on the fork.
+7. Author scripts/build_wheel_gcp.sh that:
+     - Provisions ONE GCP n2-standard-8 on-demand VM in us-central1 (default project: tqcli-wheel-build).
+     - Installs CUDA 13.0 toolkit.
+     - For each (flavor, py-version) in
+         [(ampere-ada-hopper, 3.10), (ampere-ada-hopper, 3.11), (ampere-ada-hopper, 3.12),
+          (blackwell, 3.10),         (blackwell, 3.11),         (blackwell, 3.12)]:
+         a. Set pyproject.toml `name` = `vllm-turboquant` (ampere-ada-hopper) or `vllm-turboquant-blackwell` (blackwell).
+         b. Set TORCH_CUDA_ARCH_LIST per flavor.
+         c. Set MAX_JOBS=4, NVCC_THREADS=4, VLLM_TARGET_DEVICE=cuda.
+         d. Write TURBOQUANT_BUILD_ARCH + TURBOQUANT_BUILD_ARCH_LIST into vllm/__init__.py.
+         e. Run python -m build --wheel.
+         f. Push wheel to gs://tqcli-wheel-build/0.7.0-tq1/.
+     - Tears down the VM after all six builds complete (or on error, with a flag to keep-alive for debugging).
+   Run as a SINGLE invocation. Wall time ~30h, cost ~$12.
+
+8. Measure each wheel's size. If any single wheel still exceeds 2 GB despite the split: STOP. Escalate to user — fallback paths:
+     (a) GitHub LFS (also has 2 GB per-file limit but separate quota)
+     (b) Further granularity (split blackwell into DC sm_10.0 vs consumer/spark sm_12.0/12.1)
+
+9. If all six are under 2 GB:
+     gh release create v0.7.0-tq1 --repo tqcli/vllm-turboquant
+     Upload all six .whl + SHA256SUMS. Release body includes Section C.2 numbers + the install table from step 4.
+
+10. Document the script path + invocation in fork docs/RELEASING.md.
+
+11. Confirm on a clean CUDA 13.0 Ubuntu VM:
+     - pip install vllm-turboquant --find-links https://github.com/tqcli/vllm-turboquant/releases/expanded_assets/v0.7.0-tq1 resolves and works on RTX 4090 / A100.
+     - pip install vllm-turboquant-blackwell --find-links ... resolves and works on RTX 5090 / B200.
+     - Cross-flavor mismatch test: install vllm-turboquant on a Blackwell GPU → check_arch_compatibility() raises RuntimeError with the clear message.
+
+Verification via RunPod (cost ~$7.69 total, Community Cloud per 2026-04-26 API check, see Section 3):
+  - V3 (RTX 4090, ~3h Community Cloud, ~$1.02): pip install vllm-turboquant; python -c "import vllm; print(vllm.TURBOQUANT_ENABLED, vllm.TURBOQUANT_BUILD_ARCH)" prints (True, ampere-ada-hopper).
+  - V4 (RTX 5090, ~1h Community Cloud, ~$0.69): pip install vllm-turboquant-blackwell; sentinel prints (True, blackwell).
+  - V5 (B200, ~1h Community Cloud, ~$5.98): same as V4 with the larger card.
 
 Do NOT touch tqcli/ or the llama fork.
 ```
@@ -317,9 +357,9 @@ Ordered by cost. Execute after Workstream B publishes the wheels.
 |---|---|---|---|---|
 | V1 | Own WSL2 | RTX A2000 (sm_8.6, Ampere) | Full `tqcli chat --kv-quant turbo3` on Gemma 4 E2B | $0 |
 | V2 | Own Windows 11 Pro | RTX A2000 (same card, different OS) | llama.cpp CUDA path | $0 |
-| V3 | Vast.ai on-demand 3 hr | RTX 4090 (sm_8.9, Ada) | vllm + turboquant35 end-to-end | ~$0.87 |
-| V4 | Vast.ai on-demand 1 hr | RTX 5090 (sm_12.0, Blackwell consumer) | vllm + turboquant35 — proves Blackwell consumer path | ~$0.51 |
-| V5 | Lambda Labs 1 hr | B200 (sm_10.0, Blackwell DC) | vllm + turboquant35 — LinkedIn-worthy | ~$3.49 |
+| V3 | RunPod Community Cloud 3 hr | RTX 4090 (sm_8.9, Ada) | `vllm-turboquant` + turboquant35 end-to-end | ~$1.02 |
+| V4 | RunPod Community Cloud 1 hr | RTX 5090 (sm_12.0, Blackwell consumer) | `vllm-turboquant-blackwell` + turboquant35 — proves Blackwell consumer path | ~$0.69 |
+| V5 | RunPod Community Cloud 1 hr | B200 (sm_10.0, Blackwell DC) | `vllm-turboquant-blackwell` + turboquant35 — LinkedIn-worthy | ~$5.98 |
 | V6 | Own ASUS Ascent GX10 | GB10 (sm_12.1, Blackwell DGX Spark) | vllm + turboquant35 — proves sm_121 path | $0 |
 | V7 | Friend's M-series Mac | Apple Silicon Metal | `scripts/community_verify.sh --auto-report` | $0 |
 | V8 | Friend's Intel Mac | x86_64 CPU | Same | $0 |
@@ -332,7 +372,7 @@ Assertions per cell (the `--json` output MUST contain):
 - `--ai-tinkering` with closed stdin exits non-zero fast (TP V1 agent-mode smoke).
 - Unrestricted headless run terminates within `max_agent_steps` without orphan vLLM workers.
 
-**Total verification cost**: ~$5.35.
+**Total verification cost**: ~$7.69 (RunPod Community Cloud — confirmed via API 2026-04-26).
 
 ---
 
@@ -363,6 +403,20 @@ Separate deliverable. User posts from `tests/release_drafts/linkedin_0.7.0.md` (
 
 ---
 
+## Section 4.5: First-run findings (2026-04-26)
+
+The first `/project-manager` orchestration run revealed:
+
+1. **Workstream A fork-target mismatch.** `tqcli/llama-cpp-turboquant` is a fork of `ggml-org/llama.cpp` (C++ engine), NOT `abetlen/llama-cpp-python` (Python bindings). The PRD/TP and 0.C PyPI registration assumed the latter. Resolution: create new repo `tqcli/llama-cpp-python-turboquant` from `abetlen/llama-cpp-python`, re-register PyPI Pending Publisher with the new repo name. 6 staged artifacts at `patches/llama-cpp-turboquant/` drop in cleanly to the new repo.
+
+2. **Workstream B prep complete, build paused.** All required artifacts authored. Cross-repo application + verification + tag deferred to maintainer. GCP build held until Workstream A resolves (Option 3 — cohesive launch).
+
+3. **Workstream C complete.** Real code in branch `task-3-release-tqcli-1777190346`, blocked on B's wheel pin.
+
+4. **`/project-manager` orchestrator caveat.** Workers in worktree-of-repo-X cannot push to repo Y. They correctly stage artifacts and exit. Cross-repo prep needs the maintainer (or `tq-cross-repo-prep` skill driving from the umbrella repo).
+
+5. **New release-engineering skills created** to encode lessons: `tq-pre-release-verify`, `tq-cross-repo-prep`, `tq-wheel-orchestrator`, `tq-release-conductor`. The first three are immediately reusable; the conductor wraps the others.
+
 ## Section 5: Rollback
 
 If 0.7.0 breaks installs in the wild:
@@ -376,15 +430,15 @@ If 0.7.0 breaks installs in the wild:
 
 | Item | Cost |
 |---|---|
-| GCP `n2-standard-16` on-demand × 3 parallel VMs × 6 hr | ~$13.97 |
-| Vast.ai RTX 4090, 3 hr | ~$0.87 |
-| Vast.ai RTX 5090, 1 hr | ~$0.51 |
-| Lambda Labs B200, 1 hr | ~$3.49 |
+| GCP `n2-standard-8` sequential × ~30 hr (6 wheels) | ~$11.64 |
+| RunPod RTX 4090 (Community), 3 hr | ~$1.02 |
+| RunPod RTX 5090 (Community), 1 hr | ~$0.69 |
+| RunPod B200 (Community), 1 hr | ~$5.98 |
 | Own ASUS Ascent GX10, sm_121 verify | $0 |
 | GCP egress 6 GB | ~$0.60 |
-| **Total D-day** | **~$19.44** |
+| **Total D-day** | **~$19.93** |
 
-Well under the $250/day ceiling. Repeatable at this cost on every rebuild (realistic cadence: 4–8/year initially, settling to 2–4/year; annual compute ~$40–160).
+Well under the $250/day ceiling. Wall time stretches to ~30 hours (sequential build, no GCP quota request needed); a parallel 3-VM build with quota would shrink wall time to ~6h at roughly the same $ cost. Repeatable on every rebuild (realistic cadence: 4–8/year initially, settling to 2–4/year; annual compute ~$40–150).
 
 ---
 
