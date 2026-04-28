@@ -1,5 +1,24 @@
 # Product Requirements Document: TurboQuant Fork Wheel Distribution
 
+> **Status update 2026-04-27 (late UTC) — W-A 0.3.1-tq2 fast-follow Path A shipping:** Five workflow iterations (each fixing a real bug masked by the prior one) revealed the actual W-A blocker: cibuildwheel for Linux runs builds inside a sandboxed manylinux Docker container, and the Jimver-on-host CUDA install (the original fast-follow plan) is invisible to nvcc inside that sandbox.
+>
+> **Path A (0.7.0, shipping in iteration #6):** drop the Linux Jimver step entirely; switch `CIBW_MANYLINUX_X86_64_IMAGE` to `pytorch/manylinux-builder:cuda12.8` (PyTorch's own CUDA-enabled manylinux2014 image, verified real on Docker Hub, 2025-02-25). nvcc + libcublas + libcurand at `/usr/local/cuda`. Windows path keeps Jimver-on-host (Windows cibuildwheel runs on the host, no sandbox).
+>
+> **Path B (0.7.1, follow-up):** switch to canonical PyPA `quay.io/pypa/manylinux_2_28_x86_64` and install CUDA inside the container at build time via `CIBW_BEFORE_ALL_LINUX` (DNF — manylinux_2_28 is AlmaLinux 8). Removes our dependency on a third-party CUDA image staying current. Trade-off: +5 min × 3 cells (~15 min added per build). Tracked at **[tqcli/llama-cpp-python-turboquant#3](https://github.com/tqcli/llama-cpp-python-turboquant/issues/3)**.
+>
+> Other side-effect fixes baked into 0.3.1-tq2: `python -m pip` for Windows pip self-upgrade, `non-cuda-sub-packages` for NVIDIA's CUDA-12 lib namespace, `\|`-block + quoted CMAKE_ARGS, macos-13 native runners replaced by macos-14 cross-build for x86_64 with `-DGGML_NATIVE=OFF -DGGML_AVX=ON -DGGML_AVX2=ON -DGGML_FMA=ON` SIMD baseline. Full iteration table in `docs/prompts/ship_turboquant_wheels.md` Section 4.6.
+
+> **Status update 2026-04-27 (early UTC) — build phase in progress:** Workstreams tagged + builds kicked off. W-A on GitHub Actions, W-B on GCP VM-self-driving tmux. Three real build bugs surfaced and patched on the VM (must be backported to fork before next release):
+> 1. `setuptools_scm` rejects `v0.7.0-tq1` git tag (non-PEP-440) — fix: `SETUPTOOLS_SCM_PRETEND_VERSION=0.7.0.post20260426` env var
+> 2. vLLM `setup.py` auto-throttles to `-j=1` under RAM pressure (32 GB n2-standard-8) — fix: 16 GB swap + explicit `MAX_JOBS=8`/`NVCC_THREADS=2`
+> 3. `_build_one_wheel.sh` `--no-isolation` build-deps list missing `setuptools-scm`, `packaging`, `cmake`, `jinja2`, `numpy`, plus version pins — fix: install full `[build-system].requires` verbatim
+>
+> Build run history this cycle: run #1 (Sun 13:42 UTC) failed on bug 3; run #2 (Sun 15:39 UTC) failed on bug 1 again (pyproject.toml hack didn't fix it because setup.py calls setuptools_scm directly); run #3 (Mon 01:58 UTC) addresses bugs 1+2+3 and is the live run as of this update. Sunk cost on previous attempts: ~$5 of GCP compute. Build now VM-self-driving in detached tmux — survives local WSL2 reboots.
+>
+> W-A status: tag `v0.3.0-tq1` pushed; cibuildwheel matrix succeeded for CPU + sdist + Metal cells; **all CUDA cells failed** at `Install CUDA 12.8 toolkit` step using `Jimver/cuda-toolkit@v0.2.16` (action-version compatibility issue). Fast-follow: 0.3.1-tq2 with `@v0.2.19+`. CPU/Metal wheels can publish from current run; CUDA users fall back to source build until 0.3.1.
+>
+> Monitoring (no Claude session needed): `gsutil ls gs://tqcli-wheel-build/0.7.0-tq1/_status/` shows per-wheel progress sentinels.
+
 > **Status update 2026-04-26 (afternoon):** First `/project-manager` orchestration run completed. Surfaced critical findings; release is **PAUSED** at multi-workstream prep:
 > - **Workstream A — BLOCKED on fork-target mismatch.** Worker found that `tqcli/llama-cpp-turboquant` is a fork of `ggml-org/llama.cpp` (the C++ engine), NOT `abetlen/llama-cpp-python` (Python bindings). Publishing the C++ fork as `llama-cpp-python-turboquant` would ship helper scripts under a name that promises Python bindings — breaks `from llama_cpp import Llama`. Resolution path: create `tqcli/llama-cpp-python-turboquant` (fork from `abetlen/llama-cpp-python`), point its `vendor/llama.cpp` submodule at the existing C++ TurboQuant fork, re-register PyPI Pending Publisher (current 0.C reg keyed to wrong repo). 6 patches staged at `patches/llama-cpp-turboquant/`.
 > - **Workstream B — STAGED, build paused.** Worker authored sentinels, runtime arch check, sequential GCP build script, RELEASING runbook, release body, RunPod verification commands. Did NOT execute the cross-repo work (correctly — needs maintainer to apply patches to fork, identify golden commit, run verification on real GPU). 7+ artifacts at `patches/vllm-turboquant/wheel_distribution_v0.7.0-tq1/`. **GCP build deliberately not kicked off until Workstream A is also resolved (Option 3 — cohesive launch).**

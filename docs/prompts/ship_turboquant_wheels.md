@@ -417,6 +417,81 @@ The first `/project-manager` orchestration run revealed:
 
 5. **New release-engineering skills created** to encode lessons: `tq-pre-release-verify`, `tq-cross-repo-prep`, `tq-wheel-orchestrator`, `tq-release-conductor`. The first three are immediately reusable; the conductor wraps the others.
 
+## Section 4.6: Build-execution findings (2026-04-26 evening → 2026-04-27 early UTC)
+
+After Sections 0.A–0.D + cohesive prep + tagging both forks, the actual build phase surfaced three real bugs that must be backported before the next release cycle:
+
+### Bug 1 — `setuptools_scm` rejects non-PEP-440 git tags
+
+The fork's `setup.py` calls `setuptools_scm.get_version()` directly. With git tag `v0.7.0-tq1`, `packaging.Version()` raises `InvalidVersion: 'v0.7.0-tq1'` because `-tq1` is not a valid PEP 440 segment. **Editing `pyproject.toml` to set a static version does NOT fix this** — the call path is via `setup.py`, not via the `dynamic = ["version"]` mechanism.
+
+**Fix:** export `SETUPTOOLS_SCM_PRETEND_VERSION=0.7.0.post20260426` (or matching PEP 440-valid version) before `python -m build`. This is the canonical setuptools_scm escape hatch and is now in `_build_one_wheel.sh` on the VM.
+
+**Backport target:** add the env var to the fork's `scripts/_build_one_wheel.sh` so future tagged releases of the form `vX.Y.Z-tqN` build without manual intervention.
+
+### Bug 2 — vLLM `setup.py` auto-throttles to `-j=1` under RAM pressure
+
+n2-standard-8 has 32 GB RAM. vLLM's `compute_num_jobs()` auto-detects available memory and divides by ~7 GB/job. Even with `MAX_JOBS=4` set in env, the actual cmake/ninja invocation came out as `cmake --build . -j=1 ninja -j 1` — single-threaded. Build #1 was at ~25 files/hour, projecting **80–120h total**.
+
+**Fix (applied 2026-04-27 ~01:58 UTC):**
+- Added 16 GB swap (`/swapfile`) to give the auto-detector more breathing room
+- Force `MAX_JOBS=8`, `NVCC_THREADS=2`, `CMAKE_BUILD_PARALLEL_LEVEL=8`
+
+**Backport target:** the fork's `scripts/_build_one_wheel.sh` should set MAX_JOBS based on `nproc` × 1.0 (not vLLM's RAM heuristic) and add explicit swap-creation as a prerequisite step. **Also document n2-standard-16 (64 GB) as the safer machine class** for future builds — n2-standard-8 (32 GB) is right at the edge for 4-way parallel CUDA compile.
+
+### Bug 3 — `_build_one_wheel.sh` build-deps list incomplete
+
+The helper used `pip install --upgrade pip build wheel setuptools "torch>=2.4" ninja` and ran `python -m build --no-isolation`. With `--no-isolation`, the venv MUST contain ALL of the fork's `[build-system].requires`. Missing: `setuptools-scm`, `packaging`, `cmake`, `jinja2`, `numpy`. Also `setuptools<81` (fork pins a max), `torch==2.10.0` (fork pins exact).
+
+**Fix (applied 2026-04-27 on VM):** install the full declared list verbatim:
+```
+pip install build wheel "setuptools>=77.0.3,<81.0.0" "setuptools-scm>=8.0" \
+            "packaging>=24.2" "torch==2.10.0" cmake ninja jinja2 numpy
+```
+
+**Backport target:** same — fork's `scripts/_build_one_wheel.sh` should derive the build-deps list from `pyproject.toml`'s `[build-system].requires` rather than hand-list a partial set.
+
+### Build-execution path moved to VM-self-driving (2026-04-27 ~01:58 UTC)
+
+The build loop now runs **entirely on the GCP VM in detached tmux**, not orchestrated from local WSL2. This was forced by the user's WSL2 reboot schedule (Mon 6 AM EDT + 4:45 PM EDT terminations) which would otherwise kill the local SSH-driven loop mid-build.
+
+**Monitoring path** (no local WSL2 dependency):
+- `gsutil ls gs://tqcli-wheel-build/0.7.0-tq1/_status/` — progress sentinels
+- `gcloud compute ssh vllm-tq-builder --zone us-central1-a --project tqcli-wheel-build --command 'tmux capture-pane -t build -p | tail -30'` — live tmux output
+- VM **self-tears-down** on success (writes `done.<ts>` sentinel + runs `sudo shutdown -h now`)
+- VM **stays up** on any per-wheel failure for debugging (writes `aborted.<ts>` + per-wheel `*.fail` sentinels)
+
+### Workstream A (cibuildwheel) status
+
+- Tag `v0.3.0-tq1` pushed; GitHub Actions matrix in progress.
+- CPU + sdist + Metal cells succeeded.
+- **All CUDA cells (Linux + Windows × 3 Python) failed at the `Install CUDA 12.8 toolkit` step** using `Jimver/cuda-toolkit@v0.2.16`. Likely action-version compatibility issue with CUDA 12.8.
+- **Recommended fast-follow:** in 0.3.1-tq2, bump action to `Jimver/cuda-toolkit@v0.2.19+` and re-tag. CPU/Metal wheels publish from current run; CUDA users fall back to source build until 0.3.1.
+
+### Workstream A v0.3.1-tq2 fast-follow journey (2026-04-27 evening UTC)
+
+The "fast-follow" turned out to be five iterations deep — each fixed a real bug, but the previous bug masked the next one:
+
+| # | Tag commit | Failure | Root cause | Fix |
+|---|---|---|---|---|
+| 1 | `d736355` | `Error: Version not available: 12.8.0` (Jimver) | `Jimver/cuda-toolkit@v0.2.19` (Nov 2024) predates CUDA 12.8 release (Jan 2025) | Bump to `v0.2.30` (Dec 2025) |
+| 2 | `ac62013` | `apt: cuda-cusolver-12-8 not found` | NVIDIA renamed library packages from `cuda-<lib>-12-8` → `lib<lib>-12-8` in CUDA 12+ | Split `sub-packages` (toolchain) from `non-cuda-sub-packages` (libs) per Jimver issue #371; drop unused cusparse/cusolver |
+| 3 | `472915b` | `cibuildwheel: Malformed environment option 'CMAKE_ARGS=-DGGML_CUDA=on -DCMAKE_CUDA_ARCHITECTURES=80;86;89;90 MAX_JOBS=2'` | YAML `>-` folded scalar emits the value unquoted; cibuildwheel's shell-style parser splits on whitespace mid-value | Switch to `\|` literal block + double-quote `CMAKE_ARGS` |
+| 4 | `ceb702d` | `CMake Error ... CUDA Toolkit not found ... Could not find nvcc executable` | **The real blocker.** cibuildwheel for Linux runs the build inside a sandboxed manylinux Docker container; Jimver-on-host CUDA was invisible to nvcc inside the sandbox. (Windows cibuildwheel runs on the host, so Windows isn't affected.) | **Path A:** drop Linux Jimver step entirely; switch `CIBW_MANYLINUX_X86_64_IMAGE` to `ghcr.io/scikit-build/manylinux_2_28_x86_64_cuda:12.8` (scikit-build org's purpose-built image with nvcc + libcublas + libcurand pre-installed at `/usr/local/cuda`) |
+| 5 | `0a4d105` | (running) | Path A applied | — |
+
+**Path A (shipped in 0.7.0) vs Path B (proper fix for 0.7.1):**
+
+Path A depends on the scikit-build org's CUDA-enabled manylinux image staying current. If that image is deleted or lags CUDA point releases, our build breaks with no internal recovery path. **Path B** is the more resilient design: use the canonical PyPA `quay.io/pypa/manylinux_2_28_x86_64` image and install CUDA *inside* the container at build time via `CIBW_BEFORE_ALL_LINUX` (DNF — manylinux_2_28 is AlmaLinux 8, not Ubuntu). Trade-off is +5 min per cell × 3 cells (~15 min build time added).
+
+Path B is tracked as a 0.7.1 follow-up: **[tqcli/llama-cpp-python-turboquant#3](https://github.com/tqcli/llama-cpp-python-turboquant/issues/3)**.
+
+**Lessons captured for next launch:**
+- Don't trust the Jimver host install for Linux cibuildwheel — host installs do not survive into the manylinux sandbox.
+- Verify Jimver action version supports the target CUDA version (action's version map is baked-in per release; v0.2.19 was Nov 2024, before CUDA 12.8 shipped in Jan 2025).
+- NVIDIA's CUDA 12+ apt namespace split (`cuda-X-Y-Z` for tools, `libX-Y-Z` for libs) breaks any sub-package list copy-pasted from CUDA 11.x examples.
+- YAML `>-` folded scalars + cibuildwheel's CIBW_ENVIRONMENT shell-parser require explicit quoting around values containing spaces or semicolons.
+
 ## Section 5: Rollback
 
 If 0.7.0 breaks installs in the wild:

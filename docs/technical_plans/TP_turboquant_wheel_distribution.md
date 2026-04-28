@@ -2,6 +2,20 @@
 
 Companion to `docs/prd/PRD_turboquant_wheel_distribution.md`. Target release: **tqCLI 0.7.0**.
 
+> **Status update 2026-04-27 (early UTC) — build phase live:** Both forks tagged. W-A cibuildwheel matrix in progress on GitHub Actions (CPU/Metal/sdist green; CUDA cells failed at `Jimver/cuda-toolkit@v0.2.16` — fast-follow with `@v0.2.19+` in 0.3.1-tq2). W-B GCP build kicked off on VM `vllm-tq-builder` (n2-standard-8, us-central1-a), now running in **detached tmux** as VM-self-driving (no local WSL2 dependency).
+>
+> **Three Phase 3 build bugs identified — backport required before next release:**
+>
+> 1. **`setuptools_scm` parser failure on non-PEP-440 git tag.** `setup.py` calls `setuptools_scm.get_version()` directly; with tag `v0.7.0-tq1`, `packaging.Version()` raises `InvalidVersion`. Editing pyproject's `dynamic` field doesn't fix this — wrong call path. **Fix (applied on VM):** `export SETUPTOOLS_SCM_PRETEND_VERSION=0.7.0.post20260426` before `python -m build`. **Backport:** add to `scripts/_build_one_wheel.sh` permanently.
+>
+> 2. **vLLM `setup.py` auto-throttles to `-j=1` under RAM pressure.** vLLM's `compute_num_jobs()` divides available RAM by ~7 GB/job. On n2-standard-8 (32 GB), even with `MAX_JOBS=4` set, cmake/ninja came out at `-j=1` — single-threaded build at ~25 files/hour, projecting 80–120h total. **Fix (applied on VM):** 16 GB swap file + explicit `MAX_JOBS=8`/`NVCC_THREADS=2`/`CMAKE_BUILD_PARALLEL_LEVEL=8`. **Backport:** force MAX_JOBS based on `nproc` not vLLM's heuristic + add swap-creation as build prerequisite. **Recommended VM size update: n2-standard-16 (64 GB)** for safer 4–8-way parallel — n2-standard-8 is right at the edge.
+>
+> 3. **`_build_one_wheel.sh` build-deps list incomplete for `--no-isolation` mode.** Missing `setuptools-scm`, `packaging`, `cmake`, `jinja2`, `numpy`; missing version pins (`setuptools<81`, `torch==2.10.0`). **Fix (applied on VM):** install full declared list verbatim from fork's `[build-system].requires`. **Backport:** derive deps list from pyproject.toml at runtime, don't hand-list.
+>
+> **Sunk cost on previous build attempts:** ~$5 of GCP compute (12h serial run + 2 short failed runs). Current run started 2026-04-27 ~01:58 UTC; if parallelism engaged, ETA ~10–14h to all 6 wheels. If still serial, would surface as next per-wheel `.fail` sentinel and require deeper intervention.
+>
+> **Phase 7 V2 (regression test on WSL2)** is no longer the canonical verification path — the build is now on GCP. The fork's RELEASING.md and the `tq-wheel-orchestrator` skill (added 2026-04-26) own the build-execution flow.
+
 > **Status update 2026-04-26 (afternoon):** First `/project-manager` run completed; release PAUSED at prep phase. Findings:
 > - **Phase 1 / A1 — BLOCKED.** Fork-target mismatch (see PRD update). `tqcli/llama-cpp-turboquant` is the C++ engine fork; the Python-bindings fork (`tqcli/llama-cpp-python-turboquant`) does not yet exist. Resolution requires creating the new repo + re-registering PyPI Pending Publisher.
 > - **Phase 1 / B1 — STAGED.** Sentinels (`vllm/__init__.py.snippet`), runtime arch check (`vllm/turboquant_arch_check.py`), build scripts (`scripts/build_wheel_gcp.sh` + `_build_one_wheel.sh`), `docs/RELEASING.md`, release body template, RunPod verification commands all authored. Cross-repo application + golden-commit verification + tag deferred to maintainer.
@@ -514,6 +528,8 @@ All five platform matrix cells in V1 return exit code 0 with the expected TurboQ
 | **Engine Auditor panel interleaves with orchestrator stream output** (added 2026-04-18 per gemini review) | Medium | Medium | Enforce the Phase 5 C5 ordering contract: `render_audit_warnings()` must `console.file.flush()` BEFORE `AgentOrchestrator.__init__`. Add a unit test that captures stderr and asserts the panel's final newline precedes the first stream chunk. |
 | **vllm-turboquant wheel's pinned torch/numpy/pydantic downgrades agent orchestrator deps** (added 2026-04-18 per gemini review) | Medium | High | Run the Phase 4 C2a dependency-harmony check before release. If `tests/test_agent_orchestrator.py` fails with the fork installed but passes with upstream, block the release until deps are reconciled in one of the wheels. |
 | **Docker image ships upstream vllm because Dockerfile wasn't updated** | Low | Medium | Section 8 of the PRD now mandates the Docker layer update; CI should build the image and run `pip show llama-cpp-python-turboquant vllm-turboquant` as a smoke step. |
+| **Linux CUDA wheel build depends on `pytorch/manylinux-builder:cuda12.8` (third-party image)** (added 2026-04-27 — Path A trade-off in W-A v0.3.1-tq2) | Medium | High | If the image is deleted or PyTorch stops publishing the cuda12.8 tag, all Linux CUDA wheel builds break. **Path B (0.7.1):** switch to canonical `quay.io/pypa/manylinux_2_28_x86_64` and install CUDA inside the container via `CIBW_BEFORE_ALL_LINUX` (DNF on AlmaLinux 8). Tracked at [tqcli/llama-cpp-python-turboquant#3](https://github.com/tqcli/llama-cpp-python-turboquant/issues/3). |
+| **macOS x86_64 cross-build picks up host arm64 SIMD flags** (added 2026-04-27) | High when first encountered | High | llama.cpp's `GGML_NATIVE=ON` default emits `-mcpu=apple-m1` even when targeting x86_64. Workflow now sets `CMAKE_ARGS="-DGGML_NATIVE=OFF -DGGML_AVX=ON -DGGML_AVX2=ON -DGGML_FMA=ON"` for the macOS cpu variant (cross-built from arm64). Intel Mac SIMD baseline of AVX/AVX2/FMA covers every Mac shipped since ~2013. |
 
 ## Rollback Plan
 
