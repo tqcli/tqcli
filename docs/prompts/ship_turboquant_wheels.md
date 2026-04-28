@@ -359,7 +359,7 @@ Ordered by cost. Execute after Workstream B publishes the wheels.
 | V2 | Own Windows 11 Pro | RTX A2000 (same card, different OS) | llama.cpp CUDA path | $0 |
 | V3 | RunPod Community Cloud 3 hr | RTX 4090 (sm_8.9, Ada) | `vllm-turboquant` + turboquant35 end-to-end | ~$1.02 |
 | V4 | RunPod Community Cloud 1 hr | RTX 5090 (sm_12.0, Blackwell consumer) | `vllm-turboquant-blackwell` + turboquant35 — proves Blackwell consumer path | ~$0.69 |
-| V5 | RunPod Community Cloud 1 hr | B200 (sm_10.0, Blackwell DC) | `vllm-turboquant-blackwell` + turboquant35 — LinkedIn-worthy | ~$5.98 |
+| ~~V5~~ | ~~RunPod Community Cloud 1 hr~~ | ~~B200 (sm_10.0, Blackwell DC)~~ | **DEFERRED to 0.7.1 — RunPod B200 capacity unavailable on 2026-04-27 (`onDemandPrice=None spotPrice=None` for both Community and Secure clouds). V4 (RTX 5090, Blackwell consumer) proves the same wheel; B200 verification is marketing, not correctness. Tracked at [tqcli/tqcli#41](https://github.com/tqcli/tqcli/issues/41).** | n/a |
 | V6 | Own ASUS Ascent GX10 | GB10 (sm_12.1, Blackwell DGX Spark) | vllm + turboquant35 — proves sm_121 path | $0 |
 | V7 | Friend's M-series Mac | Apple Silicon Metal | `scripts/community_verify.sh --auto-report` | $0 |
 | V8 | Friend's Intel Mac | x86_64 CPU | Same | $0 |
@@ -372,7 +372,7 @@ Assertions per cell (the `--json` output MUST contain):
 - `--ai-tinkering` with closed stdin exits non-zero fast (TP V1 agent-mode smoke).
 - Unrestricted headless run terminates within `max_agent_steps` without orphan vLLM workers.
 
-**Total verification cost**: ~$7.69 (RunPod Community Cloud — confirmed via API 2026-04-26).
+**Total verification cost**: ~$1.71 (V3 + V4 only; V5 deferred to 0.7.1 — see #41).
 
 ---
 

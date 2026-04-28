@@ -1,5 +1,7 @@
 # Product Requirements Document: TurboQuant Fork Wheel Distribution
 
+> **Status update 2026-04-27 (late UTC) — V5 (B200) deferred to 0.7.1:** RunPod B200 capacity unavailable as of 2026-04-27 (`onDemandPrice=None spotPrice=None` across both Community and Secure clouds — capacity disappeared since the 2026-04-26 inventory snapshot). 0.7.0 ships with V3 (RTX 4090, sm_8.9) + V4 (RTX 5090, sm_12.0) only. V4 already covers `vllm-turboquant-blackwell`'s runtime path; B200's `cubin` exists in the same wheel via the build-time `TORCH_CUDA_ARCH_LIST`. Loss is the LinkedIn screenshot, not correctness. Re-run tracked at [tqcli/tqcli#41](https://github.com/tqcli/tqcli/issues/41).
+
 > **Status update 2026-04-27 (late UTC) — W-A 0.3.1-tq2 fast-follow Path A shipping:** Five workflow iterations (each fixing a real bug masked by the prior one) revealed the actual W-A blocker: cibuildwheel for Linux runs builds inside a sandboxed manylinux Docker container, and the Jimver-on-host CUDA install (the original fast-follow plan) is invisible to nvcc inside that sandbox.
 >
 > **Path A (0.7.0, shipping in iteration #6):** drop the Linux Jimver step entirely; switch `CIBW_MANYLINUX_X86_64_IMAGE` to `pytorch/manylinux-builder:cuda12.8` (PyTorch's own CUDA-enabled manylinux2014 image, verified real on Docker Hub, 2025-02-25). nvcc + libcublas + libcurand at `/usr/local/cuda`. Windows path keeps Jimver-on-host (Windows cibuildwheel runs on the host, no sandbox).
