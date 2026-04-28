@@ -107,7 +107,12 @@
 
 1. **Renamed fork packages.** `llama-cpp-python` → `llama-cpp-python-turboquant`, `vllm` → `vllm-turboquant`. Both install into the same `llama_cpp` / `vllm` Python import namespaces, so `tqcli/core/*_backend.py` needs zero import changes.
 
-2. **Pre-built wheel matrix for `llama-cpp-python-turboquant`.** `cibuildwheel`-driven GitHub Actions build on push-to-tag. Matrix covers CPython 3.10 / 3.11 / 3.12 across Linux (x86_64 CPU + CUDA 12.8), Windows (x86_64 CPU + CUDA 12.8), macOS (arm64 Metal + x86_64 CPU). Uploaded to PyPI via Trusted Publishing (no long-lived API tokens). CUDA 12.1 is NOT supported — TurboQuant requires 12.8+.
+2. **Pre-built wheel matrix for `llama-cpp-python-turboquant`.** `cibuildwheel`-driven GitHub Actions build on push-to-tag. Matrix covers CPython 3.10 / 3.11 / 3.12 across Linux (x86_64 CPU + CUDA 12.8), Windows (x86_64 CPU + CUDA 12.8), macOS arm64 (Metal). Uploaded to PyPI via Trusted Publishing (no long-lived API tokens). CUDA 12.1 is NOT supported — TurboQuant requires 12.8+. macOS x86_64 (Intel Mac) deferred to 0.7.1 — upstream `CMakeLists.txt` `set(GGML_METAL ON ... FORCE)` overrides our cross-build env vars. Apple Silicon ≈ 85–90% of Macs sold since 2020; Intel Mac users fall back to source build via the published sdist.
+
+   **End-user install paths** (locked in iter #12 / `v0.3.1-tq3`):
+   - **Linux CUDA:** `pip install llama-cpp-python-turboquant[cuda12]` — PyTorch +cuXXX pattern. The wheel excludes `libcudart.so.12` / `libcublas.so.12` / `libcublasLt.so.12` from auditwheel and ships RPATH `$ORIGIN/../../nvidia/<lib>/lib`. The `[cuda12]` extra installs `nvidia-cuda-runtime-cu12==12.8.57` + `nvidia-cublas-cu12==12.8.3.14` from PyPI. End user does NOT need a system CUDA toolkit.
+   - **Windows CUDA:** `pip install llama-cpp-python-turboquant` — `delvewheel` bundles `cudart64_12.dll` + `cublas64_12.dll` + transitive deps directly into the wheel under `llama_cpp.libs/`. A 16-line `os.add_dll_directory` stub at the top of `llama_cpp/__init__.py` registers the bundled directory before the C extension loads. End user does NOT need a system CUDA toolkit.
+   - **Linux/Windows CPU + macOS Metal:** standard `pip install llama-cpp-python-turboquant` with no extras.
 
 3. **One-off manual wheel for `vllm-turboquant`.** Maintainer runs `python -m build --wheel` on WSL2 once per release, pinning the Gemma 4 + BNB_INT4 + CPU offload + turboquant35 commit. Wheel is attached to a GitHub Release on `ithllc/vllm-turboquant`. Users install with `pip install tqcli[vllm-tq] --find-links https://github.com/ithllc/vllm-turboquant/releases/download/<tag>/`.
 

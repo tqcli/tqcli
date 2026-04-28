@@ -492,6 +492,66 @@ Path B is tracked as a 0.7.1 follow-up: **[tqcli/llama-cpp-python-turboquant#3](
 - NVIDIA's CUDA 12+ apt namespace split (`cuda-X-Y-Z` for tools, `libX-Y-Z` for libs) breaks any sub-package list copy-pasted from CUDA 11.x examples.
 - YAML `>-` folded scalars + cibuildwheel's CIBW_ENVIRONMENT shell-parser require explicit quoting around values containing spaces or semicolons.
 
+### Workstream A v0.3.1-tq2 → v0.3.1-tq3 (iter #11 → iter #12, 2026-04-28 UTC)
+
+After the Path A image switch landed, six more iterations chased CUDA-cell failures (auditwheel platform tag, std::filesystem on Intel Mac, macOS x86_64 dropped to 0.7.1 follow-up, mtmd-cli linker missing cudart, etc.). **Iter #11** attempted to fix the remaining CUDA failures via global linker flags but broke CMake's compiler-detection probe; **iter #12** is the first iter built around the no-scope-cut principle (`feedback_no_scope_cut.md`):
+
+**Failure modes resolved in iter #12 (`v0.3.1-tq3`):**
+
+| Symptom | Root cause | Iter #12 fix |
+|---|---|---|
+| Linux CUDA: `ld: cannot find -lcudart` at `testCCompiler.c` | Global `CMAKE_EXE_LINKER_FLAGS=-Wl,--no-as-needed,-lcudart` applied to CMake's TryCompile probe; `LIBRARY_PATH` doesn't propagate into the probe's stripped-env link | Add `-DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY` to skip the probe link; embed `-L/usr/local/cuda/lib64` directly in `CMAKE_EXE_LINKER_FLAGS` for the real project link |
+| Windows CUDA: `FileNotFoundError: Could not find module 'llama.dll'` in `CIBW_TEST_COMMAND` | Test venv has no CUDA toolkit; `cudart64_12.dll` not on PATH; sentinels live in `__init__.py` after `from .llama_cpp import *` so `import llama_cpp` always loads the C ext | `delvewheel repair --add-path "C:/Program Files/.../CUDA/v12.8/bin"` bundles CUDA DLLs into `llama_cpp.libs/`; new 16-line `os.add_dll_directory` stub at top of `__init__.py` registers the bundled directory before the C ext loads |
+
+**The PyTorch +cuXXX pattern for Linux** (introduced in iter #12):
+
+Don't bundle CUDA libs into the Linux wheel — exclude them from auditwheel and let the `nvidia-cuda-runtime-cu12` PyPI wheel provide them at install time. Then patchelf the C extension's RPATH so it finds pip-installed nvidia/* at runtime.
+
+```yaml
+# wheels.yml (Linux CUDA cell)
+CIBW_REPAIR_WHEEL_COMMAND_LINUX: bash {project}/scripts/repair_linux_wheel.sh "{wheel}" "{dest_dir}" "${{ matrix.variant }}"
+CIBW_BEFORE_TEST_LINUX: |
+  if [ "${{ matrix.variant }}" = "cuda" ]; then
+    pip install nvidia-cuda-runtime-cu12==12.8.57 nvidia-cublas-cu12==12.8.3.14
+  fi
+```
+
+```bash
+# scripts/repair_linux_wheel.sh (CUDA branch)
+auditwheel repair --plat manylinux2014_x86_64 \
+    --exclude libcudart.so.12 \
+    --exclude libcublas.so.12 \
+    --exclude libcublasLt.so.12 \
+    -w "$DEST_DIR" "$WHEEL"
+# Then patchelf RPATH on every .so so it finds pip-installed nvidia/*/lib/
+patchelf --add-rpath '$ORIGIN/../../nvidia/cuda_runtime/lib:$ORIGIN/../../nvidia/cublas/lib' "$so"
+```
+
+**End-user install paths** baked into iter #12:
+
+```bash
+pip install llama-cpp-python-turboquant[cuda12]   # Linux: pulls nvidia-* runtime libs from PyPI
+pip install llama-cpp-python-turboquant            # Windows: CUDA DLLs already bundled by delvewheel
+```
+
+The `[cuda12]` extra in `pyproject.toml` pins exactly to the 12.8.0 series:
+```toml
+[project.optional-dependencies]
+cuda12 = [
+    "nvidia-cuda-runtime-cu12==12.8.57",
+    "nvidia-cublas-cu12==12.8.3.14",
+]
+```
+
+**Lessons captured for next launch (add to `tq-wheel-build-audit` skill):**
+- Global `CMAKE_EXE_LINKER_FLAGS=-l<lib>` applies to CMake's TryCompile probe; the probe runs in a sandboxed dir where `LIBRARY_PATH` may not propagate, so ld can't find `-l<lib>` even when the host env has it set. Always pair with `-DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY` (skips probe link) and embed `-L<dir>` directly in the linker flag (don't rely on env propagation).
+- `CIBW_TEST_COMMAND` that imports the package always runs `__init__.py`. If `__init__.py` loads a C extension with non-bundled runtime deps (CUDA DLLs, etc.), tests on a vanilla CIBW runner fail. Either bundle the deps via `delvewheel`/`auditwheel`, or install them in `CIBW_BEFORE_TEST_*`. **Do not** scope-cut by switching to text-read of source files — see `feedback_no_scope_cut.md`.
+- delvewheel for Windows CUDA needs `--add-path "<cuda toolkit bin>"` — Jimver's installed location isn't on the default DLL search path that delvewheel scans.
+- Pin `nvidia-cuda-runtime-cu12` to exact micro-version (`==12.8.57`) to prevent pip from drifting to 12.9.x (which mismatches a CUDA 12.8 build toolkit).
+- Use atomic `gh api git/trees + git/commits + git/refs` for cross-machine commit application — survives WSL2 reboot mid-flight, no clone required.
+
+**Bracket discipline** (added to runbook): cap retry iterations at 2 / ~6h GA wall time before re-evaluating strategy. The 11-iteration history of v0.3.1-tq2 was driven by surface-symptom fixes that masked the next bug; the bracket forces a strategy audit instead of a 12th surface fix.
+
 ## Section 5: Rollback
 
 If 0.7.0 breaks installs in the wild:

@@ -135,33 +135,55 @@ Automated, tag-triggered wheel builds across the full cross-platform matrix on f
 **A2. Wheel matrix.**
 1. Create `.github/workflows/wheels.yml` in the llama fork using `pypa/cibuildwheel@v2.19`.
 2. Matrix (free runners only):
-   - `ubuntu-latest` × CPython 3.10/3.11/3.12 × `{CPU, CUDA 12.8}` (CUDA 12.1 dropped — TurboQuant kernels require 12.8+)
-   - `windows-latest` × CPython 3.10/3.11/3.12 × `{CPU, CUDA 12.8}`
+   - `ubuntu-latest` × CPython 3.10/3.11/3.12 × `{CPU, CUDA 12.8}` (CUDA 12.1 dropped — TurboQuant kernels require 12.8+). Use `CIBW_MANYLINUX_X86_64_IMAGE: pytorch/manylinux-builder:cuda12.8` so `nvcc` is available *inside* the manylinux sandbox (Jimver-on-host CUDA does not survive into the cibuildwheel Docker container).
+   - `windows-latest` × CPython 3.10/3.11/3.12 × `{CPU, CUDA 12.8}` — Windows cibuildwheel runs on the host, so `Jimver/cuda-toolkit@v0.2.30` is the supported install path.
    - `macos-14` (arm64) × CPython 3.10/3.11/3.12 × `{Metal}`
-   - `macos-13` (x86_64) × CPython 3.10/3.11/3.12 × `{CPU}`
-3. Use `CIBW_ENVIRONMENT` to set `CMAKE_ARGS="-DLLAMA_CUDA=on"` or `-DLLAMA_METAL=on` per variant.
-4. Set `MAX_JOBS=2` and enable `ccache` to stay under the 16 GB / 4-vCPU runner limit.
-5. Skip musllinux and i686 (`CIBW_SKIP = "*-musllinux* *-manylinux_i686"`).
+   - `macos-14` (arm64 runner) × `{x86_64 cross-build}` — **deferred to 0.7.1.** Upstream `CMakeLists.txt` `set(GGML_METAL ON ... FORCE)` overrides our `-DGGML_METAL=OFF` env vars; needs an upstream patch. Apple Silicon Metal cells cover ~85–90% of Macs sold since 2020. Tracked at `tqcli/llama-cpp-python-turboquant#3`.
+3. Use `CIBW_ENVIRONMENT_*` (`|` literal block, NOT `>-` folded scalar) with double-quoted `CMAKE_ARGS` so embedded `;` in `-DCMAKE_CUDA_ARCHITECTURES=80;86;89;90` survives cibuildwheel's shell-style env-parser intact.
+4. Linux CUDA cell **must** include `-DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY` and embed `-L/usr/local/cuda/lib64` in `CMAKE_EXE_LINKER_FLAGS`. CMake's TryCompile probe runs in a sandbox where `LIBRARY_PATH` does not propagate; without these two flags any global `-l<lib>` flag fails the compiler-detection step before the project compiles.
+5. Set `MAX_JOBS=2` and enable `ccache` to stay under the 16 GB / 4-vCPU runner limit.
+6. Skip musllinux and i686 (`CIBW_SKIP = "*-musllinux* *-manylinux_i686"`).
+
+**A2.5. Wheel repair — bundled vs PyPI-extra CUDA libs.**
+
+Linux and Windows take different approaches because the wheel-size and DLL-loader trade-offs differ:
+
+- **Linux: PyTorch +cuXXX pattern (CUDA libs from PyPI extra).**
+  `auditwheel repair --plat manylinux2014_x86_64 --exclude libcudart.so.12 --exclude libcublas.so.12 --exclude libcublasLt.so.12 -w {dest_dir} {wheel}` keeps the wheel small. `patchelf --add-rpath '$ORIGIN/../../nvidia/cuda_runtime/lib:$ORIGIN/../../nvidia/cublas/lib'` on every `.so` inside the repaired wheel makes the C extension find pip-installed nvidia/* at runtime. End user runs `pip install llama-cpp-python-turboquant[cuda12]` to pull `nvidia-cuda-runtime-cu12==12.8.57` + `nvidia-cublas-cu12==12.8.3.14` from PyPI. Implemented as `scripts/repair_linux_wheel.sh` invoked by `CIBW_REPAIR_WHEEL_COMMAND_LINUX`.
+- **Windows: bundled DLLs (delvewheel).**
+  `delvewheel repair --add-path "C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v12.8/bin" -w {dest_dir} {wheel}` bundles `cudart64_12.dll` + `cublas64_12.dll` + transitive deps into `llama_cpp.libs/`. The `--add-path` arg points delvewheel at Jimver's installed location. A 16-line `os.add_dll_directory(<wheel_root>/llama_cpp.libs)` stub at the top of `llama_cpp/__init__.py` registers the bundled directory before the C extension loads (Python 3.8+ disabled PATH-based DLL resolution). End user runs `pip install llama-cpp-python-turboquant` — no extras, no toolkit install.
+
+**A2.6. Test rigor — no scope-cut.**
+
+`CIBW_TEST_COMMAND` runs the full `import llama_cpp; assert llama_cpp.TURBOQUANT_BUILD is True; assert llama_cpp.TURBOQUANT_KV_TYPES == ('turbo2','turbo3','turbo4')` against the actually-loaded wheel. `CIBW_BEFORE_TEST_LINUX` and `CIBW_BEFORE_TEST_WINDOWS` install `nvidia-cuda-runtime-cu12==12.8.57 nvidia-cublas-cu12==12.8.3.14` so the test venv has CUDA libs available. **Do not** weaken the test to a source-file text-read — that would bypass wheel-corruption detection (see `feedback_no_scope_cut.md`).
 
 **A3. PyPI Trusted Publishing.**
-1. Register the PyPI project `llama-cpp-python-turboquant` (owner: ithllc).
-2. Configure Trusted Publisher with repo `ithllc/llama-cpp-turboquant`, workflow `wheels.yml`, environment `pypi`.
-3. Add a `publish` job at the end of `wheels.yml` using `pypa/gh-action-pypi-publish@release/v1` — no `PYPI_API_TOKEN` secret needed.
+1. Register the PyPI project `llama-cpp-python-turboquant` (owner: tqcli).
+2. Configure Trusted Publisher with repo `tqcli/llama-cpp-python-turboquant`, workflow `wheels.yml`, environment `(none)`.
+3. Add a `publish` job at the end of `wheels.yml` using `pypa/gh-action-pypi-publish@release/v1` — no `PYPI_API_TOKEN` secret needed. Job needs `permissions: id-token: write`.
 
 **A4. Release tag trigger.**
 1. Workflow triggers on `push: tags: ['v*']`.
 2. Use `softprops/action-gh-release@v2` to attach the same wheels to the GitHub Release page (for users who prefer `--find-links`).
+3. Apply iter-N+1 patches via atomic `gh api git/trees + git/commits + git/refs` (no clone, no local build) so the patch survives WSL2 reboot mid-flight. See `tq-wheel-build-audit` skill for the audit-then-patch pattern.
 
 ### Files
-- `ithllc/llama-cpp-turboquant/.github/workflows/wheels.yml` (Created)
-- `ithllc/llama-cpp-turboquant/pyproject.toml` (add `[tool.cibuildwheel]` config block)
-- `ithllc/llama-cpp-turboquant/.ccache/` ignored via `.gitignore`
+- `tqcli/llama-cpp-python-turboquant/.github/workflows/wheels.yml` (Created)
+- `tqcli/llama-cpp-python-turboquant/pyproject.toml` — `[project.optional-dependencies] cuda12 = ["nvidia-cuda-runtime-cu12==12.8.57", "nvidia-cublas-cu12==12.8.3.14"]` (added in iter #12 / `v0.3.1-tq3`)
+- `tqcli/llama-cpp-python-turboquant/llama_cpp/__init__.py` — Windows DLL-directory stub (16 lines at top, before `from .llama_cpp import *`)
+- `tqcli/llama-cpp-python-turboquant/scripts/repair_linux_wheel.sh` (new) — auditwheel `--exclude` + patchelf RPATH wrapper
+- `tqcli/llama-cpp-python-turboquant/.ccache/` ignored via `.gitignore`
 
 ### Dependencies
 - Phase 1 (rename must land first or PyPI project creation targets the wrong name).
+- `delvewheel` and `patchelf` available in the build environment. `delvewheel` is added to `CIBW_BEFORE_BUILD: python -m pip install --upgrade pip cmake ninja scikit-build-core delvewheel`. `patchelf` ships in `pytorch/manylinux-builder:cuda12.8`.
 
 ### Verification
-- Tag `v0.3.0-tq1` on the fork → `wheels.yml` runs to green → PyPI shows wheels for all 32+ matrix cells → `pip install llama-cpp-python-turboquant` on a clean venv succeeds on Linux/Mac/Windows and `python -c "import llama_cpp; print(llama_cpp.TURBOQUANT_BUILD)"` prints `True`.
+- Tag `v0.3.1-tq3` on the fork → `wheels.yml` runs to green for all 16 matrix cells (sdist + 6 Linux + 6 Windows + 3 macOS Metal) → PyPI shows wheels.
+- Linux CUDA: `pip install llama-cpp-python-turboquant[cuda12]` on a clean Ubuntu venv with NO system CUDA toolkit → `python -c "import llama_cpp; assert llama_cpp.TURBOQUANT_BUILD is True; print('OK')"` prints OK.
+- Windows CUDA: `pip install llama-cpp-python-turboquant` on a clean Windows venv with NO system CUDA toolkit → same import test passes (DLLs bundled).
+- Linux/Windows CPU: `pip install llama-cpp-python-turboquant` with no extras → import test passes.
+- macOS arm64: `pip install llama-cpp-python-turboquant` → import test passes.
 
 ---
 
